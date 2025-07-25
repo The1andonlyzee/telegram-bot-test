@@ -28,7 +28,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def setlokasi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Prompt the user to provide their location and store it."""
     # Simulate asking for a location (you could replace this with a real method to collect coordinates)
-    # user_id = update.message.from_user
     user_id = update.message.from_user.id if update.message else update.callback_query.from_user.id
     # user_location[user_id] = "Some Location"  # Just a placeholder; replace with actual location gathering logic
     if update.message:

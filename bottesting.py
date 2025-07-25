@@ -1,3 +1,4 @@
+""" ini masih setlokasi() nya dan misah dari ceklokasi() """
 import os
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton

@@ -12,7 +12,7 @@ TELEGRAM_TOKEN = os.getenv("BOT_TOKEN")
 # Store the location status (in memory, you can extend this to a database or file)
 user_location = {}
 
-# Simulate fetching locations from the database
+# simulasi doang, nnti pake dummy db dah
 def get_locations_from_db():
     return ["Location 1", "Location 2", "Location 3"]
 
@@ -30,6 +30,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     await update.message.reply_text(intro_message)
 
+async def printuserdict(update : Update, context: ContextTypes.DEFAULT_TYPE) -> None :
+    print(user_location)
+    print(context.user_data)
+
+
 async def setlokasi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sets the user's location to the selected location."""
     user_id = update.message.from_user.id if update.message else update.callback_query.from_user.id
@@ -43,7 +48,7 @@ async def setlokasi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         location = "default location"  # Default if no location selected
 
     user_location[user_id] = location  # Store the location
-    await update.message.reply_text(f"Location set to: {location}" if update.message else f"Location set to: {location}")
+    await update.message.reply_text(f"Location set to: {location}") if update.message else update.callback_query.reply_text(f"Location set to: {location}")
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles the callback query for inline buttons."""
@@ -55,53 +60,47 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Call the setlokasi function after the button press
         await setlokasi(update, context)
 
-# Function to prompt the user to select a location
+# cek lokasi dan pilih lokasi
 async def ceklokasi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Prompts the user to select a location from a list of available locations."""
-    locations = get_locations_from_db()  # Fetch locations from database
+    locations = get_locations_from_db()  # masih contoh
 
-    # Create buttons for each location
+    # inline keyboard
     keyboard = [[InlineKeyboardButton(loc, callback_data=loc)] for loc in locations]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Ask the user to select a location
     await update.message.reply_text("Please select your location:", reply_markup=reply_markup)
     return SELECT_LOCATION
 
 async def location_selected(update: Update, context: CallbackContext) -> int:
     """Handles the location selection by the user."""
     user_id = update.callback_query.from_user.id
-    selected_location = update.callback_query.data  # Get the selected location
+    selected_location = update.callback_query.data  #ambil data dari ceklokasi 
 
-    # Store the selected location for the user in context.user_data
+    # simpan datanya di context
     context.user_data['selected_location'] = selected_location
 
     await update.callback_query.answer()
     await update.callback_query.edit_message_text(f"Your location has been set to: {selected_location}")
 
-    # Now call setlokasi to set the actual location in the user_location dictionary
+    # set lokasi untuk sekarang masih di dict, nntilah pindahin ke db
     await setlokasi(update, context)
 
-    return ConversationHandler.END  # End the conversation
+    return ConversationHandler.END  
 
 async def cekodp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """This function checks if the user has set their location, and if not, prompts them to set it."""
     user_id = update.message.from_user.id
 
-    # Start the checking process
-    await update.message.reply_text("Checking odp...")
+    await update.message.reply_text("Checking odp...") # debugging 
 
-    # If location is not set, prompt the user to select a location
     if user_id not in user_location:
-        # Start the conversation for selecting a location
         return await ceklokasi(update, context)
-
     else:
-        # If location is already set, output a success message
         await update.message.reply_text(f"Location is already set to: {user_location[user_id]}")
 
-    # Finish the checking process
-    await update.message.reply_text("Checking odp finished.")
+   
+    await update.message.reply_text("Checking odp finished.") # debugging
     return ConversationHandler.END
 
 async def echo(update: Update, context: CallbackContext) -> None:
@@ -109,36 +108,37 @@ async def echo(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text(update.message.text)
 
 if __name__ == '__main__':
-    print("Starting bot...")
+    print("Starting bot...") # debugging
 
-    # Create the application with the bot token
+    # template dri githubnya 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    # Define the conversation handler for location selection
+    # handler utk select lokasi
     location_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("cekodp", cekodp)],  # Trigger /cekodp
         states={
             SELECT_LOCATION: [
-                CallbackQueryHandler(location_selected),  # Handle location selection
+                CallbackQueryHandler(location_selected),  
             ],
         },
-        fallbacks=[],  # No fallback in this example
+        fallbacks=[],  
     )
 
-    # Add handlers for commands
+    # commands handler
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("setlokasi", setlokasi))  # Allow direct command for setting location
+    application.add_handler(CommandHandler("printuserdict", printuserdict))  # Allow direct command for setting location
+    
 
-    # Add the conversation handler for location selection
+    # convo handler
     application.add_handler(location_conv_handler)
 
-    # Add handler for button callback (this listens for inline button presses)
+    # button handler
     application.add_handler(CallbackQueryHandler(button))
 
-    # Add handler for messages (echoing messages)
+    # ini template utk echo not needed ji sebenarnya
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-    print("Polling started...")
+    print("Polling started...") # utk debugging
 
-    # Start the bot (polling)
     application.run_polling()
