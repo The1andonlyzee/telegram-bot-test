@@ -70,7 +70,7 @@ async def show_location_selection(update: Update, is_callback=False) -> int:
     locations = get_all_locations()
     
     if not locations:
-        message = "❌ Tidak ada lokasi tersedia."
+        message = "❌ Tidak ada lokasi tersedia, Hubungi admin jika ini tidak tepat."
         if is_callback:
             await update.callback_query.edit_message_text(message)
         else:
@@ -116,7 +116,7 @@ async def location_selected(update: Update, context: CallbackContext) -> int:
                     f"🔟 Total Port: {entry['ODPTotalPort']}\n"
                     f"🟢 Port Tersedia: {entry['ODPAvailablePort']}\n\n"
                 )
-        print(f'final messages : {messages}')
+        # print(f'final messages :\n{messages}')
         # Create navigation keyboard
         keyboard = [
             [InlineKeyboardButton("🔄 Pilih Lokasi Lain", callback_data="back_to_locations")],
@@ -130,12 +130,10 @@ async def location_selected(update: Update, context: CallbackContext) -> int:
             f"📍 Lokasi: {selected_location}\n\n{messages}", 
             reply_markup=reply_markup
         )
+        print('-'*10 +'location_selected finished'+ '-'*10 ) # debugging
         return NAVIGATE
     else:
         await query.message.reply_text("❌ Lokasi tidak ditemukan di database.")
-
-    print('-'*10 +'location_selected finished'+ '-'*10 ) # debugging
-    return ConversationHandler.END
 
 async def handle_navigation(update: Update, context: CallbackContext) -> int:
     print('-'*10 + 'handle_navigation called'+ '-'*10)
