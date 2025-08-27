@@ -43,15 +43,36 @@ def get_db_connection():
         logger.error(f"Database connection failed: {e}")
         raise
 
-def get_location_data(location_name):
+def get_location_data(coverage_id):
     conn = None
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            sql = "SELECT * FROM odptable WHERE LocationName = %s"
-            cursor.execute(sql, (location_name,))
+            # Query to get ODC and ODP data with customer count for available ports
+            sql = """
+            SELECT 
+                c.c_name as LocationName,
+                odc.code_odc as ODCCode,
+                odp.code_odp as ODPCode,
+                odp.total_port as ODPTotalPort,
+                COALESCE(customer_count.used_ports, 0) as UsedPorts,
+                (odp.total_port - COALESCE(customer_count.used_ports, 0)) as ODPAvailablePort
+            FROM coverage c
+            JOIN m_odc odc ON c.coverage_id = odc.coverage_odc
+            JOIN m_odp odp ON odc.id_odc = odp.code_odc
+            LEFT JOIN (
+                SELECT 
+                    id_odp, 
+                    COUNT(*) as used_ports
+                FROM customer 
+                GROUP BY id_odp
+            ) customer_count ON odp.id_odp = customer_count.id_odp
+            WHERE c.coverage_id = %s
+            ORDER BY odc.code_odc, odp.code_odp
+            """
+            cursor.execute(sql, (coverage_id,))
             result = cursor.fetchall()
-            logger.info(f"Retrieved {len(result)} records for location: {location_name}")
+            logger.info(f"Retrieved {len(result)} records for coverage_id: {coverage_id}")
             return result
     except pymysql.Error as e:
         logger.error(f"MySQL error in get_location_data: {e}")
@@ -71,10 +92,11 @@ def get_all_locations():
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            sql = "SELECT DISTINCT LocationName FROM odptable ORDER BY LocationName"
+            sql = "SELECT coverage_id, c_name FROM coverage WHERE c_name IS NOT NULL AND c_name != '' ORDER BY c_name"
             cursor.execute(sql)     
             results = cursor.fetchall()
-            locations = [row["LocationName"] for row in results if row["LocationName"]]
+            # Return list of tuples (coverage_id, c_name) for callback data and display
+            locations = [(row["coverage_id"], row["c_name"]) for row in results if row["c_name"]]
             logger.info(f"Retrieved {len(locations)} unique locations")
             return locations
     except pymysql.Error as e:
@@ -89,6 +111,7 @@ def get_all_locations():
                 conn.close()
             except Exception as e:
                 logger.error(f"Error closing connection in get_all_locations: {e}")
+
 
 # /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -112,7 +135,8 @@ async def show_location_selection(update: Update, is_callback=False) -> int:
                 await update.message.reply_text(error_message)
             return ConversationHandler.END
 
-        keyboard = [[InlineKeyboardButton(loc, callback_data=loc)] for loc in set(locations)]
+        keyboard = [[InlineKeyboardButton(c_name, callback_data=str(coverage_id))] 
+                   for coverage_id, c_name in locations]
         reply_markup = InlineKeyboardMarkup(keyboard)
         message = "Silakan pilih lokasi ODP:"
 
