@@ -71,7 +71,6 @@ class DatabaseManager:
                         id_odp, 
                         COUNT(*) as used_ports
                     FROM customer 
-                    WHERE status = 'active'
                     GROUP BY id_odp
                 ) customer_count ON odp.id_odp = customer_count.id_odp
                 WHERE c.coverage_id = %s
@@ -111,7 +110,7 @@ class DatabaseManager:
                 FROM coverage c
                 JOIN m_odc odc ON c.coverage_id = odc.coverage_odc
                 JOIN m_odp odp ON odc.id_odc = odp.code_odc
-                LEFT JOIN customer cust ON odp.id_odp = cust.id_odp AND cust.status = 'active'
+                LEFT JOIN customer cust ON odp.id_odp = cust.id_odp
                 WHERE c.coverage_id = %s
                 GROUP BY odp.id_odp, odp.code_odp, odc.code_odc, c.c_name, odp.total_port
                 HAVING customer_count > 0
@@ -142,10 +141,9 @@ class DatabaseManager:
             with conn.cursor() as cursor:
                 sql = """
                 SELECT 
-                    c.customer_name,
-                    c.port_number as no_port_odp,
-                    c.connection_date,
-                    c.status,
+                    c.name,
+                    c.address,
+                    c.no_port_odp as no_port_odp,
                     odp.code_odp,
                     odc.code_odc,
                     cov.c_name as LocationName
@@ -153,8 +151,8 @@ class DatabaseManager:
                 JOIN m_odp odp ON c.id_odp = odp.id_odp
                 JOIN m_odc odc ON c.id_odc = odc.id_odc
                 JOIN coverage cov ON odc.coverage_odc = cov.coverage_id
-                WHERE c.id_odp = %s AND c.status = 'active'
-                ORDER BY c.port_number
+                WHERE c.id_odp = %s 
+                ORDER BY c.no_port_odp
                 """
                 cursor.execute(sql, (id_odp,))
                 result = cursor.fetchall()
@@ -172,6 +170,47 @@ class DatabaseManager:
                     conn.close()
                 except Exception as e:
                     logger.error(f"Error closing connection in get_customers_by_odp: {e}")
+
+    def search_customers_by_name(self, customer_name):
+        """Search customers by name (partial match)"""
+        conn = None
+        try:
+            conn = self.get_connection()
+            with conn.cursor() as cursor:
+                sql = """
+                SELECT 
+                    c.name,
+                    c.address,
+                    c.no_port_odp as no_port_odp,
+                    c.no_wa,
+                    odp.code_odp,
+                    odc.code_odc,
+                    cov.c_name as LocationName
+                FROM customer c
+                JOIN m_odp odp ON c.id_odp = odp.id_odp
+                JOIN m_odc odc ON c.id_odc = odc.id_odc
+                JOIN coverage cov ON odc.coverage_odc = cov.coverage_id
+                WHERE c.name LIKE %s 
+                ORDER BY c.name
+                LIMIT 20
+                """
+                search_term = f"%{customer_name}%"
+                cursor.execute(sql, (search_term,))
+                result = cursor.fetchall()
+                logger.info(f"Found {len(result)} customers matching '{customer_name}'")
+                return result
+        except pymysql.Error as e:
+            logger.error(f"MySQL error in search_customers_by_name: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error in search_customers_by_name: {e}")
+            return []
+        finally:
+            if conn:
+                try:
+                    conn.close()
+                except Exception as e:
+                    logger.error(f"Error closing connection in search_customers_by_name: {e}")
 
 # Create global database manager instance
 db_manager = DatabaseManager()
