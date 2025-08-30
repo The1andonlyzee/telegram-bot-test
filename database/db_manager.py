@@ -57,12 +57,12 @@ class DatabaseManager:
             with conn.cursor() as cursor:
                 sql = """
                 SELECT 
-                    c.c_name as LocationName,
-                    odc.code_odc as ODCCode,
-                    odp.code_odp as ODPCode,
-                    odp.total_port as ODPTotalPort,
-                    COALESCE(customer_count.used_ports, 0) as UsedPorts,
-                    (odp.total_port - COALESCE(customer_count.used_ports, 0)) as ODPAvailablePort
+                    c.c_name,
+                    odc.code_odc,
+                    odp.code_odp,
+                    odp.total_port,
+                    COALESCE(customer_count.used_ports, 0) as used_ports,
+                    (odp.total_port - COALESCE(customer_count.used_ports, 0)) as odp_available_port
                 FROM coverage c
                 JOIN m_odc odc ON c.coverage_id = odc.coverage_odc
                 JOIN m_odp odp ON odc.id_odc = odp.code_odc
@@ -104,7 +104,7 @@ class DatabaseManager:
                     odp.id_odp,
                     odp.code_odp,
                     odc.code_odc,
-                    c.c_name as LocationName,
+                    c.c_name,
                     odp.total_port,
                     COUNT(cust.customer_id) as customer_count
                 FROM coverage c
@@ -143,10 +143,10 @@ class DatabaseManager:
                 SELECT 
                     c.name,
                     c.address,
-                    c.no_port_odp as no_port_odp,
+                    c.no_port_odp,
                     odp.code_odp,
                     odc.code_odc,
-                    cov.c_name as LocationName
+                    cov.c_name
                 FROM customer c
                 JOIN m_odp odp ON c.id_odp = odp.id_odp
                 JOIN m_odc odc ON c.id_odc = odc.id_odc
@@ -181,11 +181,11 @@ class DatabaseManager:
                 SELECT 
                     c.name,
                     c.address,
-                    c.no_port_odp as no_port_odp,
+                    c.no_port_odp,
                     c.no_wa,
                     odp.code_odp,
                     odc.code_odc,
-                    cov.c_name as LocationName
+                    cov.c_name
                 FROM customer c
                 JOIN m_odp odp ON c.id_odp = odp.id_odp
                 JOIN m_odc odc ON c.id_odc = odc.id_odc
@@ -211,6 +211,7 @@ class DatabaseManager:
                     conn.close()
                 except Exception as e:
                     logger.error(f"Error closing connection in search_customers_by_name: {e}")
+   
 
 # Create global database manager instance
 db_manager = DatabaseManager()

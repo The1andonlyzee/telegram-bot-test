@@ -1,13 +1,13 @@
 import logging
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ConversationHandler
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, filters
 
 from config.settings import TELEGRAM_TOKEN, validate_environment
-from utils.constants import SELECT_LOCATION, NAVIGATE, CUSTOMER_SELECT_LOCATION, CUSTOMER_SELECT_ODP, CUSTOMER_NAVIGATE
+from utils.constants import SELECT_LOCATION, NAVIGATE, CUSTOMER_SELECT_LOCATION, CUSTOMER_SELECT_ODP, CUSTOMER_NAVIGATE, CUSTOMER_NAME_SEARCH
 from handlers.common_handlers import start, cancel
 from handlers.port_handlers import (
     cekodp, location_selected, handle_navigation,
     handle_customer_lookup_selection, handle_customer_location_selection,
-    handle_customer_navigation
+    handle_customer_navigation, handle_customer_name_search
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,8 @@ def create_application():
                 NAVIGATE: [CallbackQueryHandler(handle_navigation)],
                 CUSTOMER_SELECT_LOCATION: [CallbackQueryHandler(handle_customer_lookup_selection)],
                 CUSTOMER_SELECT_ODP: [CallbackQueryHandler(handle_customer_location_selection)],
-                CUSTOMER_NAVIGATE: [CallbackQueryHandler(handle_customer_navigation)]
+                CUSTOMER_NAVIGATE: [CallbackQueryHandler(handle_customer_navigation)],
+                CUSTOMER_NAME_SEARCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_customer_name_search)]
             },
             fallbacks=[
                 CommandHandler("cancel", cancel),
