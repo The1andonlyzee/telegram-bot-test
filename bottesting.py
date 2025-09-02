@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, CallbackContext, CallbackQueryHandler, filters
 
 # Load environment variables from .env file
@@ -24,21 +24,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     await update.message.reply_text(intro_message)
 
-
 async def setlokasi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Prompt the user to provide their location and store it."""
-    # Simulate asking for a location (you could replace this with a real method to collect coordinates)
-    # user_id = update.message.from_user
     user_id = update.message.from_user.id if update.message else update.callback_query.from_user.id
-    # user_location[user_id] = "Some Location"  # Just a placeholder; replace with actual location gathering logic
+    # Simulate setting a location
+    user_location[user_id] = "Some Location"  # Placeholder logic
     if update.message:
+        print("this is from message")
         await update.message.reply_text(f"Location set to: {user_location[user_id]}")
-        print(f'userid from commands : {update.message.from_user.id}')
     else:
-        print(f'userid from callback (inline button): {update.callback_query.from_user.id}')
+        print('this is form callback_query')
         await update.callback_query.message.reply_text(f"Location set to: {user_location[user_id]}")
-
-    await update.message.reply_text(f"Location set to: {user_location[user_id]}")
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles the callback query for inline buttons."""
@@ -47,8 +43,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if query.data == "1":  # If the user pressed "Set Lokasi"
         await query.edit_message_text(text="You pressed the button! Now I will collect your location.")
-        # Call the setlokasi function after the button press
-        print(update.callback_query.from_user)
         await setlokasi(update, context)
 
 async def cekodp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
