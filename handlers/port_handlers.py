@@ -2,7 +2,7 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 from database.db_manager import db_manager
-from utils.constants import user_location, NAVIGATE, SELECT_LOCATION
+from utils.constants import user_location, NAVIGATE, SELECT_LOCATION, CUSTOMER_SELECT_LOCATION, CUSTOMER_SELECT_ODP, CUSTOMER_NAVIGATE
 from utils.helpers import show_location_selection, show_main_menu
 from handlers.common_handlers import cancel
 
@@ -28,9 +28,7 @@ async def handle_main_menu(update: Update, context: CallbackContext):
             await query.edit_message_text("Loading locations...")
             return await show_location_selection(update, is_callback=True)
         elif query.data == "find_customer":
-            # TODO: Implement customer lookup
-            await query.edit_message_text("Customer lookup feature coming soon!")
-            return ConversationHandler.END
+            return await show_customer_lookup_options(update, context)
         else:
             await query.edit_message_text("❌ Pilihan tidak dikenal. Silakan mulai ulang dengan /start")
             return ConversationHandler.END
@@ -38,6 +36,226 @@ async def handle_main_menu(update: Update, context: CallbackContext):
     except Exception as e:
         logger.error(f"Error in handle_main_menu: {e}")
         await query.edit_message_text("❌ Terjadi kesalahan sistem. Silakan coba lagi dengan /start")
+        return ConversationHandler.END
+
+async def show_customer_lookup_options(update: Update, context: CallbackContext):
+    """Show customer lookup options"""
+    print(f'\n' +'=-'*12 + "show_customer_lookup_options called" + '=-'*12)
+    
+    try:
+        query = update.callback_query
+        
+        keyboard = [
+            [InlineKeyboardButton("📍 Browse by Location", callback_data="customer_by_location")],
+            [InlineKeyboardButton("🔍 Search by Name", callback_data="customer_by_name")],
+            [InlineKeyboardButton("🏠 Back to Main Menu", callback_data="back_to_main_menu")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        message = ("🔍 Customer Lookup Options:\n\n"
+                  "📍 Browse by Location - Navigate through coverage areas and ODPs\n"
+                  "🔍 Search by Name - Directly search for customer by name")
+        
+        await query.edit_message_text(message, reply_markup=reply_markup)
+        return CUSTOMER_SELECT_LOCATION
+        
+    except Exception as e:
+        logger.error(f"Error in show_customer_lookup_options: {e}")
+        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
+        return ConversationHandler.END
+
+async def handle_customer_lookup_selection(update: Update, context: CallbackContext):
+    """Handle customer lookup method selection"""
+    print(f'\n' +'=-'*12 + "handle_customer_lookup_selection called" + '=-'*12)
+    
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        if query.data == "customer_by_location":
+            return await show_customer_location_selection(update, context)
+        elif query.data == "customer_by_name":
+            await query.edit_message_text(
+                "🔍 Please type the customer name you want to search for:\n\n"
+                "Note: Use /cancel to abort the search."
+            )
+            return "WAITING_FOR_NAME_INPUT"  # This would need to be handled in a message handler
+        elif query.data == "back_to_main_menu":
+            await show_main_menu(update, is_callback=True)
+            return SELECT_LOCATION
+        else:
+            await query.edit_message_text("❌ Pilihan tidak dikenal.")
+            return ConversationHandler.END
+    
+    except Exception as e:
+        logger.error(f"Error in handle_customer_lookup_selection: {e}")
+        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
+        return ConversationHandler.END
+
+async def show_customer_location_selection(update: Update, context: CallbackContext):
+    """Show location selection for customer lookup"""
+    print(f'\n' +'=-'*12 + "show_customer_location_selection called" + '=-'*12)
+    
+    try:
+        query = update.callback_query
+        locations = db_manager.get_all_locations()
+        
+        if not locations:
+            await query.edit_message_text("❌ Tidak ada lokasi tersedia.")
+            return ConversationHandler.END
+
+        keyboard = [[InlineKeyboardButton(c_name, callback_data=f"cust_loc_{coverage_id}")] 
+                   for coverage_id, c_name in locations]
+        keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="back_to_customer_options")])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        message = "📍 Pilih lokasi untuk melihat pelanggan:"
+
+        await query.edit_message_text(message, reply_markup=reply_markup)
+        return CUSTOMER_SELECT_ODP
+        
+    except Exception as e:
+        logger.error(f"Error in show_customer_location_selection: {e}")
+        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
+        return ConversationHandler.END
+
+async def handle_customer_location_selection(update: Update, context: CallbackContext):
+    """Handle customer location selection"""
+    print(f'\n' +'=-'*12 + "handle_customer_location_selection called" + '=-'*12)
+    
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        if query.data == "back_to_customer_options":
+            return await show_customer_lookup_options(update, context)
+        
+        if query.data.startswith("cust_loc_"):
+            coverage_id = int(query.data.replace("cust_loc_", ""))
+            return await show_odp_selection(update, context, coverage_id)
+        
+        await query.edit_message_text("❌ Pilihan tidak valid.")
+        return ConversationHandler.END
+        
+    except Exception as e:
+        logger.error(f"Error in handle_customer_location_selection: {e}")
+        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
+        return ConversationHandler.END
+
+async def show_odp_selection(update: Update, context: CallbackContext, coverage_id: int):
+    """Show ODP selection for customer lookup"""
+    print(f'\n' +'=-'*12 + "show_odp_selection called" + '=-'*12)
+    
+    try:
+        query = update.callback_query
+        odps = db_manager.get_odps_by_coverage(coverage_id)
+        
+        if not odps:
+            await query.edit_message_text(
+                "❌ Tidak ada ODP dengan pelanggan aktif di lokasi ini.\n\n"
+                "Gunakan /start untuk kembali ke menu utama."
+            )
+            return ConversationHandler.END
+
+        keyboard = []
+        location_name = odps[0]['LocationName'] if odps else "Unknown"
+        
+        for odp in odps:
+            button_text = f"{odp['code_odp']} ({odp['customer_count']} customers)"
+            keyboard.append([InlineKeyboardButton(button_text, callback_data=f"odp_{odp['id_odp']}")])
+        
+        keyboard.append([InlineKeyboardButton("🔙 Back to Locations", callback_data="back_to_customer_locations")])
+        keyboard.append([InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main_menu")])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        message = f"📡 ODPs in {location_name}:\n\nSelect an ODP to view customers:"
+
+        await query.edit_message_text(message, reply_markup=reply_markup)
+        return CUSTOMER_NAVIGATE
+        
+    except Exception as e:
+        logger.error(f"Error in show_odp_selection: {e}")
+        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
+        return ConversationHandler.END
+
+async def handle_customer_navigation(update: Update, context: CallbackContext):
+    """Handle customer lookup navigation"""
+    print(f'\n' +'=-'*12 + "handle_customer_navigation called" + '=-'*12)
+    
+    try:
+        query = update.callback_query
+        await query.answer()
+        
+        if query.data == "back_to_customer_locations":
+            return await show_customer_location_selection(update, context)
+        elif query.data == "back_to_customer_options":
+            return await show_customer_lookup_options(update, context)
+        elif query.data == "back_to_main_menu":
+            await show_main_menu(update, is_callback=True)
+            return SELECT_LOCATION
+        elif query.data.startswith("odp_"):
+            id_odp = int(query.data.replace("odp_", ""))
+            return await show_customers_in_odp(update, context, id_odp)
+        else:
+            await query.edit_message_text("❌ Pilihan tidak dikenal.")
+            return ConversationHandler.END
+    
+    except Exception as e:
+        logger.error(f"Error in handle_customer_navigation: {e}")
+        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
+        return ConversationHandler.END
+
+async def show_customers_in_odp(update: Update, context: CallbackContext, id_odp: int):
+    """Show customers connected to specific ODP"""
+    print(f'\n' +'=-'*12 + "show_customers_in_odp called" + '=-'*12)
+    
+    try:
+        query = update.callback_query
+        customers = db_manager.get_customers_by_odp(id_odp)
+        
+        if not customers:
+            await query.edit_message_text("❌ Tidak ada pelanggan aktif di ODP ini.")
+            return ConversationHandler.END
+        
+        # Build customer list message
+        first_customer = customers[0]
+        location_name = first_customer.get('LocationName', 'Unknown')
+        odc_code = first_customer.get('code_odc', 'N/A')
+        odp_code = first_customer.get('code_odp', 'N/A')
+        
+        message = f"👥 Customers in ODP {odp_code}\n"
+        message += f"📍 Location: {location_name}\n"
+        message += f"🔌 ODC: {odc_code}\n\n"
+        
+        for i, customer in enumerate(customers, 1):
+            message += f"{i}. 👤 {customer.get('name', 'N/A')}\n"
+            message += f"   🏠 Address: {customer.get('address', 'N/A') if 'address' in customer else 'N/A'}\n"
+            message += f"   🔌 ODC: {customer.get('code_odc', 'N/A')}\n"
+            message += f"   📡 ODP: {customer.get('code_odp', 'N/A')}\n"
+            message += f"   🔢 Port: {customer.get('no_port_odp', 'N/A')}\n\n"
+        
+        # Telegram message limit is around 4096 characters
+        if len(message) > 4000:
+            # Split into multiple messages
+            messages = [message[i:i+4000] for i in range(0, len(message), 4000)]
+            for msg in messages[:-1]:
+                await query.message.reply_text(msg)
+            message = messages[-1]
+        
+        keyboard = [
+            [InlineKeyboardButton("🔙 Back to ODPs", callback_data="back_to_odp_selection")],
+            [InlineKeyboardButton("📍 Change Location", callback_data="back_to_customer_locations")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main_menu")],
+            [InlineKeyboardButton("✅ Finish", callback_data="finish")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(message, reply_markup=reply_markup)
+        return CUSTOMER_NAVIGATE
+        
+    except Exception as e:
+        logger.error(f"Error in show_customers_in_odp: {e}")
+        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
         return ConversationHandler.END
 
 async def location_selected(update: Update, context: CallbackContext):
@@ -74,7 +292,7 @@ async def location_selected(update: Update, context: CallbackContext):
                     messages += (
                         f"🔌 ODC Code: {entry.get('ODCCode', 'N/A')}\n"
                         f"📡 ODP Code: {entry.get('ODPCode', 'N/A')}\n"
-                        f"🔟 Total Port: {entry.get('ODPTotalPort', 'N/A')}\n"
+                        f"🔢 Total Port: {entry.get('ODPTotalPort', 'N/A')}\n"
                         f"🟢 Port Tersedia: {entry.get('ODPAvailablePort', 'N/A')}\n\n"
                     )
                 
@@ -119,6 +337,14 @@ async def handle_navigation(update: Update, context: CallbackContext):
         elif query.data == "back_to_main_menu":
             await show_main_menu(update, is_callback=True)
             return SELECT_LOCATION
+        elif query.data == "back_to_odp_selection":
+            # Need to store coverage_id in context for this to work
+            # For now, redirect to location selection
+            return await show_customer_location_selection(update, context)
+        elif query.data == "back_to_customer_locations":
+            return await show_customer_location_selection(update, context)
+        elif query.data == "back_to_customer_options":
+            return await show_customer_lookup_options(update, context)
         elif query.data == "finish":
             await query.edit_message_text("✅ Terima kasih!")
             return await cancel(update, context)
