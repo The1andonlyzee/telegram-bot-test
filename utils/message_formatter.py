@@ -2,8 +2,10 @@
 
 def convert_dms_to_decimal(dms_str):
     """Convert DMS (Degrees, Minutes, Seconds) to decimal degrees"""
+    print(f'\n' +'=-'*12 + "convert_dms_to_decimal called" + '=-'*12)
     try:
-        dms_str = str(dms_str).strip()
+
+        dms_str = str(dms_str).strip().replace(' ','')
         
         # Check if it's already in decimal format
         if '°' not in dms_str or ("'" not in dms_str and '"' not in dms_str):
@@ -19,6 +21,7 @@ def convert_dms_to_decimal(dms_str):
         match = re.match(pattern, dms_str)
         
         if not match:
+            print("error bjir di match!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             return None
             
         degrees = int(match.group(1))
@@ -34,7 +37,10 @@ def convert_dms_to_decimal(dms_str):
             decimal = -decimal
         elif direction == 'T':  # T seems to be used for Timur (East in Indonesian)
             decimal = decimal
-            
+        
+        print(f"decimal of {dms_str} is : {decimal} ")
+        # print(decimal)
+                
         return decimal
         
     except Exception:
@@ -147,47 +153,43 @@ def format_port_availability_message(location_name, location_data):
 
 def format_customer_search_results(search_term, customers):
     """Format customer search results into readable messages"""
-    message = f"🔍 Search Results for '{search_term}'\n"
-    message += f"Found {len(customers)} customer(s):\n\n"
+    messages = []
+    current_message = f"🔍 Search Results for '{search_term}'\n"
+    current_message += f"Found {len(customers)} customer(s):\n\n"
     
     for i, customer in enumerate(customers, 1):
+        
+        # ODP coordinates  
+        odp_lat = customer.get('odp_latitude', '')
+        odp_lng = customer.get('odp_longitude', '')        
+        odp_maps_url = create_google_maps_url(odp_lat, odp_lng)
+        
+        # Add ODP coordinates if available
+        location_markdown = f"[View on Maps]({odp_maps_url})" if odp_maps_url else ""
+
         customer_info = (
             f"{i}. 👤 {customer.get('name', 'N/A')}\n"
             f"   🏠 Address: {customer.get('address', 'N/A')}\n"
             f"   📍 Location: {customer.get('c_name', 'N/A')}\n"
             f"   🔌 ODC: {customer.get('code_odc', 'N/A')}\n"
-            f"   📡 ODP: {customer.get('code_odp', 'N/A')}\n"
+            f"   📡 ODP: {customer.get('code_odp', 'N/A')} {location_markdown}\n"
             f"   📢 Port: {customer.get('no_port_odp', 'N/A')}\n"
             f"   📞 Phone: {customer.get('no_wa', 'N/A')}\n\n"
         )
-        message += customer_info
+
+        # Check if adding this entry would exceed Telegram's limit
+        if len(current_message + customer_info) > 4000:
+            # Save current message and start a new one
+            messages.append(current_message.rstrip())
+            current_message = f"🔍 Search Results for '{search_term}' (continued...)\n\n" + customer_info
+        else:
+            current_message += customer_info
     
-    # Split long messages into chunks
-    if len(message) > 4000:
-        messages = []
-        current_msg = f"🔍 Search Results for '{search_term}'\nFound {len(customers)} customer(s):\n\n"
-        
-        for i, customer in enumerate(customers, 1):
-            customer_info = (
-                f"{i}. 👤 {customer.get('name', 'N/A')}\n"
-                f"   🏠 Address: {customer.get('address', 'N/A')}\n"
-                f"   📍 Location: {customer.get('c_name', 'N/A')}\n"
-                f"   🔌 ODC: {customer.get('code_odc', 'N/A')}\n"
-                f"   📡 ODP: {customer.get('code_odp', 'N/A')}\n"
-                f"   📢 Port: {customer.get('no_port_odp', 'N/A')}\n"
-                f"   📞 Phone: {customer.get('no_wa', 'N/A')}\n\n"
-            )
-            
-            if len(current_msg + customer_info) > 4000:
-                messages.append(current_msg)
-                current_msg = customer_info
-            else:
-                current_msg += customer_info
-        
-        messages.append(current_msg)
-        return messages
+    # Add the last message
+    if current_message.strip():
+        messages.append(current_message.rstrip())
     
-    return [message]
+    return messages
 
 def format_customers_in_odp(customers):
     """Format customers in ODP data into a readable message"""

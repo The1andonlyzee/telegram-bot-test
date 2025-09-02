@@ -46,7 +46,9 @@ class CustomerQueries(BaseDatabase):
                     c.no_wa,
                     odp.code_odp,
                     odc.code_odc,
-                    cov.c_name
+                    cov.c_name,
+                    odp.latitude as odp_latitude,  
+                    odp.longitude as odp_longitude 
                 FROM customer c
                 JOIN m_odp odp ON c.id_odp = odp.id_odp
                 JOIN m_odc odc ON c.id_odc = odc.id_odc

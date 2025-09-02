@@ -2,6 +2,7 @@
 import logging
 from telegram import Update
 from telegram.ext import CallbackContext, ConversationHandler
+from telegram.constants import ParseMode
 from database.customer_queries import customer_db
 from utils.constants import (
     SELECT_LOCATION, CUSTOMER_SELECT_LOCATION, CUSTOMER_SELECT_ODP, 
@@ -183,7 +184,7 @@ async def handle_customer_name_search(update: Update, context: CallbackContext):
         # Search customers
         customers = customer_db.search_customers_by_name(user_input)
         print(customers)
-        
+
         if not customers:
             reply_markup = KeyboardBuilder.no_results_keyboard()
             
@@ -195,15 +196,20 @@ async def handle_customer_name_search(update: Update, context: CallbackContext):
         
         # Format and send results
         messages = format_customer_search_results(user_input, customers)
-        
-        # Send all messages except the last one
-        for msg in messages[:-1]:
-            await update.message.reply_text(msg)
-        
-        # Navigation buttons for the last message
         reply_markup = KeyboardBuilder.search_results_keyboard()
         
-        await searching_message.edit_text(messages[-1], reply_markup=reply_markup)
+        # Send all messages with Markdown parsing to enable clickable links
+        for i, message in enumerate(messages):
+            # Add navigation buttons only to the last message
+            current_markup = reply_markup if i == len(messages) - 1 else None
+            
+            await update.message.reply_text(
+                message, 
+                reply_markup=current_markup, 
+                parse_mode=ParseMode.MARKDOWN,
+                disable_web_page_preview=True
+            )
+        
         return CUSTOMER_SELECT_LOCATION
         
     except Exception as e:
