@@ -1,25 +1,82 @@
 """Message formatting utilities for consistent Telegram message display"""
 
-def create_google_maps_url(latitude, longitude):
-    """Create Google Maps URL from coordinates"""
+def convert_dms_to_decimal(dms_str):
+    """Convert DMS (Degrees, Minutes, Seconds) to decimal degrees"""
     try:
-        # Clean and validate coordinates
-        lat = str(latitude).strip()
-        lng = str(longitude).strip()
+        dms_str = str(dms_str).strip()
         
-        # Check if coordinates are valid (not empty or null)
-        if not lat or not lng or lat in ['', '0', 'NULL', 'null'] or lng in ['', '0', 'NULL', 'null']:
+        # Check if it's already in decimal format
+        if '°' not in dms_str or ("'" not in dms_str and '"' not in dms_str):
+            # Try to parse as decimal
+            clean_str = dms_str.replace('°', '').strip()
+            return float(clean_str)
+        
+        # Parse DMS format like: 5°10'49.46"S or 119°27'40.94"T
+        import re
+        
+        # Extract numbers and direction
+        pattern = r"(\d+)°(\d+)'([\d.]+)\"([NSEWT])"
+        match = re.match(pattern, dms_str)
+        
+        if not match:
             return None
             
-        # Create Google Maps URL
-        return f"https://maps.google.com/maps?q={lat},{lng}"
-    except:
+        degrees = int(match.group(1))
+        minutes = int(match.group(2))
+        seconds = float(match.group(3))
+        direction = match.group(4).upper()
+        
+        # Convert to decimal
+        decimal = degrees + minutes/60 + seconds/3600
+        
+        # Apply direction (S and W are negative, T is treated as E for East)
+        if direction in ['S', 'W']:
+            decimal = -decimal
+        elif direction == 'T':  # T seems to be used for Timur (East in Indonesian)
+            decimal = decimal
+            
+        return decimal
+        
+    except Exception:
+        return None
+
+def create_google_maps_url(latitude, longitude):
+    """Create Google Maps URL from coordinates (handles both DMS and decimal formats)"""
+    try:
+        # Clean and validate coordinates
+        lat_str = str(latitude).strip()
+        lng_str = str(longitude).strip()
+        
+        # Check if coordinates are valid (not empty or null)
+        if not lat_str or not lng_str or lat_str in ['', '0', 'NULL', 'null'] or lng_str in ['', '0', 'NULL', 'null']:
+            return None
+        
+        # Convert DMS to decimal if needed
+        lat_decimal = convert_dms_to_decimal(lat_str)
+        lng_decimal = convert_dms_to_decimal(lng_str)
+        
+        if lat_decimal is None or lng_decimal is None:
+            return None
+            
+        # Validate reasonable coordinate ranges
+        if not (-90 <= lat_decimal <= 90) or not (-180 <= lng_decimal <= 180):
+            return None
+            
+        # Create Google Maps URL with decimal coordinates
+        return f"https://maps.google.com/maps?q={lat_decimal},{lng_decimal}"
+        
+    except Exception:
         return None
 
 def format_port_availability_message(location_name, location_data):
-    """Format port availability data into a readable message with coordinates"""
-    message = f"📊 Lokasi: {location_name}\n\n"
+    """Format port availability data into readable messages with coordinates and long message handling"""
     
+    # Handle empty data
+    if not location_data:
+        return [f"📊 Lokasi: {location_name}\n\n❌ Tidak ada data ODP tersedia."]
+    
+    messages = []
+    current_message = f"📊 Lokasi: {location_name}\n\n"
     current_odc = None
     
     for entry in location_data:
@@ -36,34 +93,57 @@ def format_port_availability_message(location_name, location_data):
         odp_lat = entry.get('odp_latitude', '')
         odp_lng = entry.get('odp_longitude', '')
         
+        # Build the entry text
+        entry_text = ""
+        
         # Show ODC info only when it changes (grouped display)
         if current_odc != odc_code:
             current_odc = odc_code
-            message += f"🔌 ODC: {odc_code}\n"
+            entry_text += f"**🔌 ODC: {odc_code}**\n"
             
             # Add ODC coordinates if available
             odc_maps_url = create_google_maps_url(odc_lat, odc_lng)
             if odc_maps_url:
-                message += f"   📍 ODC Location: [View on Maps]({odc_maps_url})\n"
+                entry_text += f"   📍 ODC Location: [View on Maps]({odc_maps_url})\n" # ini utk markdown
+                # entry_text += f"   📍 ODC Location: {odc_maps_url}\n"
             else:
-                message += f"   📍 ODC Location: Not available\n"
-            message += "\n"
+                entry_text += f"   📍 ODC Location: Not available\n"
+            entry_text += "\n"
         
         # ODP information
-        message += f"  📡 ODP: {odp_code}\n"
-        message += f"  📢 Total Port: {total_port}\n"
-        message += f"  🟢 Port Tersedia: {available_port}\n"
+        entry_text += f"  📡 ODP: {odp_code}\n"
+        entry_text += f"  📢 Total Port: {total_port}\n"
+        entry_text += f"  🟢 Port Tersedia: {available_port}\n"
+        entry_text += f"  🟢 LATITUDEEEEE: {odp_lat}\n"
+        entry_text += f"  🟢 LONGITUDEEEEE: {odp_lng}\n"
         
         # Add ODP coordinates if available
         odp_maps_url = create_google_maps_url(odp_lat, odp_lng)
         if odp_maps_url:
-            message += f"  📍 ODP Location: [View on Maps]({odp_maps_url})\n"
+            entry_text += f"  📍 ODP Location: [View on Maps]({odp_maps_url})\n" #ini utk markdown
+            # entry_text += f"  📍 ODP Location: {odp_maps_url}\n"
         else:
-            message += f"  📍 ODP Location: Not available\n"
+            entry_text += f"  📍 ODP Location: Not available\n"
         
-        message += "\n"
+        entry_text += "\n"
+        
+        # Check if adding this entry would exceed Telegram's limit
+        if len(current_message + entry_text) > 4000:
+            # Save current message and start a new one
+            messages.append(current_message.rstrip())
+            current_message = f"📊 Lokasi: {location_name} (continued...)\n\n" + entry_text
+        else:
+            current_message += entry_text
     
-    return message
+    # Add the last message
+    if current_message.strip():
+        messages.append(current_message.rstrip())
+    
+    # If no messages were created (edge case), return a default message
+    if not messages:
+        messages = [f"📊 Lokasi: {location_name}\n\n❌ Tidak ada data ODP tersedia."]
+    
+    return messages
 
 def format_customer_search_results(search_term, customers):
     """Format customer search results into readable messages"""

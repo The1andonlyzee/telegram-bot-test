@@ -45,21 +45,25 @@ async def location_selected(update: Update, context: CallbackContext):
                 user_location[user_id] = location_data
                 location_name = location_data[0].get('c_name', 'Unknown')
                 
-                # Format the port availability message with coordinates
-                message = format_port_availability_message(location_name, location_data)
+               # Format the port availability message with coordinates (returns list of messages)
+                messages = format_port_availability_message(location_name, location_data)
                 
                 reply_markup = KeyboardBuilder.port_navigation_keyboard()
                 
                 await query.answer()
                 await query.edit_message_text("Lokasi berhasil diset.")
                 
-                # Send message with Markdown parsing to enable clickable links
-                await query.message.reply_text(
-                    message, 
-                    reply_markup=reply_markup, 
-                    parse_mode=ParseMode.MARKDOWN,
-                    disable_web_page_preview=True
-                )
+                # Send all messages with Markdown parsing to enable clickable links
+                for i, message in enumerate(messages):
+                    # Add navigation buttons only to the last message
+                    current_markup = reply_markup if i == len(messages) - 1 else None
+                    
+                    await query.message.reply_text(
+                        message, 
+                        reply_markup=current_markup, 
+                        parse_mode=ParseMode.MARKDOWN,
+                        disable_web_page_preview=True
+                    )
                 
                 return NAVIGATE
             else:
