@@ -2,7 +2,6 @@
 
 def convert_dms_to_decimal(dms_str):
     """Convert DMS (Degrees, Minutes, Seconds) to decimal degrees"""
-    print(f'\n' +'=-'*12 + "convert_dms_to_decimal called" + '=-'*12)
     try:
 
         dms_str = str(dms_str).strip().replace(' ','')
@@ -21,7 +20,6 @@ def convert_dms_to_decimal(dms_str):
         match = re.match(pattern, dms_str)
         
         if not match:
-            print("error bjir di match!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             return None
             
         degrees = int(match.group(1))
@@ -38,9 +36,6 @@ def convert_dms_to_decimal(dms_str):
         elif direction == 'T':  # T seems to be used for Timur (East in Indonesian)
             decimal = decimal
         
-        print(f"decimal of {dms_str} is : {decimal} ")
-        # print(decimal)
-                
         return decimal
         
     except Exception:
