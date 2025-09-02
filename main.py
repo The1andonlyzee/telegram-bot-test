@@ -2,13 +2,17 @@ import logging
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, filters
 
 from config.settings import TELEGRAM_TOKEN, validate_environment
-from utils.constants import SELECT_LOCATION, NAVIGATE, CUSTOMER_SELECT_LOCATION, CUSTOMER_SELECT_ODP, CUSTOMER_NAVIGATE, CUSTOMER_NAME_SEARCH
+from utils.constants import (
+    SELECT_LOCATION, NAVIGATE, CUSTOMER_SELECT_LOCATION, 
+    CUSTOMER_SELECT_ODP, CUSTOMER_NAVIGATE, CUSTOMER_NAME_SEARCH
+)
 from handlers.common_handlers import start, cancel
-from handlers.port_handlers import (
-    cekodp, location_selected, handle_navigation,
+from handlers.port_handlers import cekodp, location_selected, handle_port_navigation
+from handlers.customer_handlers import (
     handle_customer_lookup_selection, handle_customer_location_selection,
     handle_customer_navigation, handle_customer_name_search
 )
+from handlers.menu_handlers import handle_navigation
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +33,7 @@ def create_application():
             ],
             states={
                 SELECT_LOCATION: [CallbackQueryHandler(location_selected)],
-                NAVIGATE: [CallbackQueryHandler(handle_navigation)],
+                NAVIGATE: [CallbackQueryHandler(handle_port_navigation)],
                 CUSTOMER_SELECT_LOCATION: [CallbackQueryHandler(handle_customer_lookup_selection)],
                 CUSTOMER_SELECT_ODP: [CallbackQueryHandler(handle_customer_location_selection)],
                 CUSTOMER_NAVIGATE: [CallbackQueryHandler(handle_customer_navigation)],
@@ -39,6 +43,7 @@ def create_application():
                 CommandHandler("cancel", cancel),
                 CommandHandler("start", start),
                 CommandHandler("cekodp", cekodp),
+                CallbackQueryHandler(handle_navigation)
             ],
             allow_reentry=True,
         )
