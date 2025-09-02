@@ -1,13 +1,18 @@
+import logging
 import os
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, CallbackContext, CallbackQueryHandler, filters, ConversationHandler
 
-# Load environment variables from .env file
-load_dotenv()
 
-# Fetch the bot token from environment variables
+# logging.basicConfig(
+    # format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+# )
+# logger = logging.getLogger(__name__)
+
+load_dotenv()
 TELEGRAM_TOKEN = os.getenv("BOT_TOKEN")
+
 
 # Store the location status (in memory, you can extend this to a database or file)
 user_location = {}
@@ -22,6 +27,7 @@ SELECT_LOCATION = 1  # State where the user selects the location
 # Commands
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     intro_message = (
+        "testingbotv3.py is running\n"
         "Hello! I am your friendly bot here to assist you.\n\n"
         "I can help you with the following commands:\n\n"
         "/setlokasi - Set your location. Click the button to set your location if not already done.\n"
@@ -31,14 +37,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(intro_message)
 
 async def printuserdict(update : Update, context: ContextTypes.DEFAULT_TYPE) -> None :
+    user_id = update.message.from_user.id if update.message else update.callback_query.from_user.id
     print(user_location)
-    print(context.user_data)
+    print(update.message.from_user.name + ": " + user_location[user_id])
 
 
 async def setlokasi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sets the user's location to the selected location."""
     user_id = update.message.from_user.id if update.message else update.callback_query.from_user.id
 
+    print(">> setlokasi is called")
     # If location is selected through callback
     if context.user_data.get('selected_location'):
         location = context.user_data['selected_location']
@@ -69,6 +77,8 @@ async def ceklokasi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     keyboard = [[InlineKeyboardButton(loc, callback_data=loc)] for loc in locations]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    print(">> ceklokasi called")
+
     await update.message.reply_text("Please select your location:", reply_markup=reply_markup)
     return SELECT_LOCATION
 
@@ -77,15 +87,16 @@ async def location_selected(update: Update, context: CallbackContext) -> int:
     user_id = update.callback_query.from_user.id
     selected_location = update.callback_query.data  #ambil data dari ceklokasi 
 
+    print(">> location_selected called")
     # simpan datanya di context
     context.user_data['selected_location'] = selected_location
-
     await update.callback_query.answer()
     await update.callback_query.edit_message_text(f"Your location has been set to: {selected_location}")
 
+    print(">> calling setlokasi")
     # set lokasi untuk sekarang masih di dict, nntilah pindahin ke db
     await setlokasi(update, context)
-
+    print(">> setlokasi calling finished")
     return ConversationHandler.END  
 
 async def cekodp(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
