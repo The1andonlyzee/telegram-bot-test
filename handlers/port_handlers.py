@@ -2,7 +2,7 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 from database.db_manager import db_manager
-from utils.constants import user_location, NAVIGATE, SELECT_LOCATION, CUSTOMER_SELECT_LOCATION, CUSTOMER_SELECT_ODP, CUSTOMER_NAVIGATE
+from utils.constants import user_location, NAVIGATE, SELECT_LOCATION, CUSTOMER_SELECT_LOCATION, CUSTOMER_SELECT_ODP, CUSTOMER_NAVIGATE, CUSTOMER_NAME_SEARCH
 from utils.helpers import show_location_selection, show_main_menu
 from handlers.common_handlers import cancel
 
@@ -77,9 +77,12 @@ async def handle_customer_lookup_selection(update: Update, context: CallbackCont
         elif query.data == "customer_by_name":
             await query.edit_message_text(
                 "🔍 Please type the customer name you want to search for:\n\n"
-                "Note: Use /cancel to abort the search."
+                "💡 Tips:\n"
+                "- You can search with partial names (e.g., 'john' will find 'John Doe')\n"
+                "- Search is case-insensitive\n"
+                "- Use /cancel to abort the search"
             )
-            return "WAITING_FOR_NAME_INPUT"  # This would need to be handled in a message handler
+            return CUSTOMER_NAME_SEARCH  
         elif query.data == "back_to_main_menu":
             await show_main_menu(update, is_callback=True)
             return SELECT_LOCATION
@@ -158,7 +161,7 @@ async def show_odp_selection(update: Update, context: CallbackContext, coverage_
             return ConversationHandler.END
 
         keyboard = []
-        location_name = odps[0]['LocationName'] if odps else "Unknown"
+        location_name = odps[0]['c_name'] if odps else "Unknown"
         
         for odp in odps:
             button_text = f"{odp['code_odp']} ({odp['customer_count']} customers)"
@@ -205,6 +208,112 @@ async def handle_customer_navigation(update: Update, context: CallbackContext):
         await query.edit_message_text("❌ Terjadi kesalahan sistem.")
         return ConversationHandler.END
 
+async def handle_customer_name_search(update: Update, context: CallbackContext):
+    """Handle customer name search input"""
+    print(f'\n' +'=-'*12 + "handle_customer_name_search called" + '=-'*12)
+    
+    try:
+        user_input = update.message.text.strip()
+        user_id = update.effective_user.id
+        
+        logger.info(f"User {user_id} searching for customer: {user_input}")
+        
+        # Validate input
+        if len(user_input) < 2:
+            await update.message.reply_text(
+                "❌ Please enter at least 2 characters for the search.\n\n"
+                "Try again or use /cancel to abort."
+            )
+            return CUSTOMER_NAME_SEARCH
+        
+        # Show searching message
+        searching_message = await update.message.reply_text("🔍 Searching customers...")
+        
+        # Search customers
+        customers = db_manager.search_customers_by_name(user_input)
+        
+        if not customers:
+            keyboard = [
+                [InlineKeyboardButton("🔍 Search Again", callback_data="customer_by_name")],
+                [InlineKeyboardButton("📍 Browse by Location", callback_data="customer_by_location")],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main_menu")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await searching_message.edit_text(
+                f"❌ No customers found for '{user_input}'\n\n"
+                f"Suggestions:\n"
+                f"• Check the spelling\n"
+                f"• Try with partial names\n"
+                f"• Use Browse by Location to see all customers",
+                reply_markup=reply_markup
+            )
+            return CUSTOMER_SELECT_LOCATION
+        
+        # Format search results
+        message = f"🔍 Search Results for '{user_input}'\n"
+        message += f"Found {len(customers)} customer(s):\n\n"
+        
+        for i, customer in enumerate(customers, 1):
+            message += f"{i}. 👤 {customer.get('name', 'N/A')}\n"
+            message += f"   🏠 Address: {customer.get('address', 'N/A')}\n"
+            message += f"   📍 Location: {customer.get('c_name', 'N/A')}\n"
+            message += f"   🔌 ODC: {customer.get('code_odc', 'N/A')}\n"
+            message += f"   📡 ODP: {customer.get('code_odp', 'N/A')}\n"
+            message += f"   🔢 Port: {customer.get('no_port_odp', 'N/A')}\n"
+            message += f"   📞 Phone: {customer.get('no_wa', 'N/A')}\n\n"
+            # message += f"   📅 Connected: {customer.get('connection_date', 'N/A')}\n"
+            # message += f"   ✅ Status: {customer.get('c_status', 'N/A')}\n\n"
+        
+        # Handle long messages
+        if len(message) > 4000:
+            messages = []
+            current_msg = f"🔍 Search Results for '{user_input}'\nFound {len(customers)} customer(s):\n\n"
+            
+            for i, customer in enumerate(customers, 1):
+                customer_info = (
+                    f"{i}. 👤 {customer.get('name', 'N/A')}\n"
+                    f"   🏠 Address: {customer.get('address', 'N/A')}\n"
+                    f"   📍 Location: {customer.get('c_name', 'N/A')}\n"
+                    f"   🔌 ODC: {customer.get('code_odc', 'N/A')}\n"
+                    f"   📡 ODP: {customer.get('code_odp', 'N/A')}\n"
+                    f"   🔢 Port: {customer.get('no_port_odp', 'N/A')}\n"
+                    f"   📞 Phone: {customer.get('no_wa', 'N/A')}\n\n"
+                    # f"   📅 Connected: {customer.get('connection_date', 'N/A')}\n"
+                    # f"   ✅ Status: {customer.get('c_status', 'N/A')}\n\n"
+                )
+                
+                if len(current_msg + customer_info) > 4000:
+                    messages.append(current_msg)
+                    current_msg = customer_info
+                else:
+                    current_msg += customer_info
+            
+            messages.append(current_msg)
+            
+            # Send all messages except the last one
+            for msg in messages[:-1]:
+                await update.message.reply_text(msg)
+            
+            message = messages[-1]
+        
+        # Navigation buttons
+        keyboard = [
+            [InlineKeyboardButton("🔍 Search Again", callback_data="customer_by_name")],
+            [InlineKeyboardButton("📍 Browse by Location", callback_data="customer_by_location")],
+            [InlineKeyboardButton("🏠 Main Menu", callback_data="back_to_main_menu")],
+            [InlineKeyboardButton("✅ Finish", callback_data="finish")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await searching_message.edit_text(message, reply_markup=reply_markup)
+        return CUSTOMER_SELECT_LOCATION
+        
+    except Exception as e:
+        logger.error(f"Error in handle_customer_name_search: {e}")
+        await update.message.reply_text("❌ Terjadi kesalahan saat mencari customer.")
+        return ConversationHandler.END
+
 async def show_customers_in_odp(update: Update, context: CallbackContext, id_odp: int):
     """Show customers connected to specific ODP"""
     print(f'\n' +'=-'*12 + "show_customers_in_odp called" + '=-'*12)
@@ -219,7 +328,7 @@ async def show_customers_in_odp(update: Update, context: CallbackContext, id_odp
         
         # Build customer list message
         first_customer = customers[0]
-        location_name = first_customer.get('LocationName', 'Unknown')
+        location_name = first_customer.get('c_name', 'Unknown')
         odc_code = first_customer.get('code_odc', 'N/A')
         odp_code = first_customer.get('code_odp', 'N/A')
         
@@ -230,8 +339,6 @@ async def show_customers_in_odp(update: Update, context: CallbackContext, id_odp
         for i, customer in enumerate(customers, 1):
             message += f"{i}. 👤 {customer.get('name', 'N/A')}\n"
             message += f"   🏠 Address: {customer.get('address', 'N/A') if 'address' in customer else 'N/A'}\n"
-            message += f"   🔌 ODC: {customer.get('code_odc', 'N/A')}\n"
-            message += f"   📡 ODP: {customer.get('code_odp', 'N/A')}\n"
             message += f"   🔢 Port: {customer.get('no_port_odp', 'N/A')}\n\n"
         
         # Telegram message limit is around 4096 characters
@@ -286,14 +393,14 @@ async def location_selected(update: Update, context: CallbackContext):
             if location_data:
                 user_location[user_id] = location_data
                 messages = ""
-                location_name = location_data[0].get('LocationName', 'Unknown')
+                location_name = location_data[0].get('c_name', 'Unknown')
                 
                 for entry in location_data:
                     messages += (
-                        f"🔌 ODC Code: {entry.get('ODCCode', 'N/A')}\n"
-                        f"📡 ODP Code: {entry.get('ODPCode', 'N/A')}\n"
-                        f"🔢 Total Port: {entry.get('ODPTotalPort', 'N/A')}\n"
-                        f"🟢 Port Tersedia: {entry.get('ODPAvailablePort', 'N/A')}\n\n"
+                        f"🔌 ODC Code: {entry.get('code_odc', 'N/A')}\n"
+                        f"📡 ODP Code: {entry.get('code_odp', 'N/A')}\n"
+                        f"🔢 Total Port: {entry.get('total_port', 'N/A')}\n"
+                        f"🟢 Port Tersedia: {entry.get('odp_available_port', 'N/A')}\n\n"
                     )
                 
                 keyboard = [

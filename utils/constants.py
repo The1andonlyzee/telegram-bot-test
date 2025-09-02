@@ -6,6 +6,7 @@ NAVIGATE = 2
 CUSTOMER_SELECT_LOCATION = 3
 CUSTOMER_SELECT_ODP = 4
 CUSTOMER_NAVIGATE = 5
+CUSTOMER_NAME_SEARCH = 6
 
 # Global user state storage
 user_location = {}
