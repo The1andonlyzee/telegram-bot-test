@@ -3,7 +3,6 @@
 def convert_dms_to_decimal(dms_str):
     """Convert DMS (Degrees, Minutes, Seconds) to decimal degrees"""
     try:
-
         dms_str = str(dms_str).strip().replace(' ','')
         
         # Check if it's already in decimal format
@@ -100,29 +99,29 @@ def format_port_availability_message(location_name, location_data):
         # Show ODC info only when it changes (grouped display)
         if current_odc != odc_code:
             current_odc = odc_code
-            entry_text += f"**🔌 ODC: {odc_code}**\n"
             
+            entry_text += f"===="*10+"\n"
+            entry_text += f"  🔌 ODC: {odc_code}\n"
+
             # Add ODC coordinates if available
             odc_maps_url = create_google_maps_url(odc_lat, odc_lng)
             if odc_maps_url:
-                entry_text += f"   📍 ODC Location: [View on Maps]({odc_maps_url})\n" # ini utk markdown
-                # entry_text += f"   📍 ODC Location: {odc_maps_url}\n"
+                entry_text += f"  📍[{odc_lat},{odc_lng}]({odc_maps_url})\n" # ini utk markdown
+                entry_text += f"===="*10+"\n"
             else:
-                entry_text += f"   📍 ODC Location: Not available\n"
+                entry_text += f"  📍 ODC Location: Not available\n"
+                entry_text += f"===="*10+"\n"
             entry_text += "\n"
         
         # ODP information
         entry_text += f"  📡 ODP: {odp_code}\n"
         entry_text += f"  📢 Total Port: {total_port}\n"
         entry_text += f"  🟢 Port Tersedia: {available_port}\n"
-        entry_text += f"  🟢 LATITUDEEEEE: {odp_lat}\n"
-        entry_text += f"  🟢 LONGITUDEEEEE: {odp_lng}\n"
         
         # Add ODP coordinates if available
         odp_maps_url = create_google_maps_url(odp_lat, odp_lng)
         if odp_maps_url:
-            entry_text += f"  📍 ODP Location: [View on Maps]({odp_maps_url})\n" #ini utk markdown
-            # entry_text += f"  📍 ODP Location: {odp_maps_url}\n"
+            entry_text += f"  📍 [{odp_lat},{odp_lng}]({odp_maps_url})\n" #ini utk markdown
         else:
             entry_text += f"  📍 ODP Location: Not available\n"
         
@@ -140,7 +139,6 @@ def format_port_availability_message(location_name, location_data):
     if current_message.strip():
         messages.append(current_message.rstrip())
     
-    # If no messages were created (edge case), return a default message
     if not messages:
         messages = [f"📊 Lokasi: {location_name}\n\n❌ Tidak ada data ODP tersedia."]
     
