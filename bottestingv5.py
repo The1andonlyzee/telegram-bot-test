@@ -127,7 +127,7 @@ async def show_location_selection(update: Update, is_callback=False) -> int:
         
     except Exception as e:
         logger.error(f"Error in show_location_selection: {e}")
-        error_message = "❌ Terjadi kesalahan sistem. Silakan coba lagi nanti."
+        error_message = "❌ Terjadi kesalahan sistem. Silakan coba lagi nanti." 
         
         try:
             if is_callback:
@@ -324,12 +324,17 @@ if __name__ == '__main__':
                 SELECT_LOCATION: [CallbackQueryHandler(location_selected)],
                 NAVIGATE: [CallbackQueryHandler(handle_navigation)]
             },
-            fallbacks=[CommandHandler("cancel", cancel)],
+            fallbacks=[
+                CommandHandler("cancel", cancel),
+                CommandHandler("start", start),  
+                CommandHandler("cekodp", cekodp),
+            ],
+            allow_reentry=True,  
         )
 
         # Register handlers
-        application.add_handler(CommandHandler("start", start))
         application.add_handler(location_conv_handler)
+        application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("cancel", cancel))
         
         logger.info("All handlers registered successfully")
