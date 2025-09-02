@@ -19,7 +19,30 @@ user_location = {}
 
 # simulasi doang, nnti pake dummy db dah
 def get_locations_from_db():
-    return ["Location 1", "Location 2", "Location 3"]
+    return ["titik a", "titik b", "titik c"]
+
+# this for real nnti 
+# import pymysql
+
+# def get_db_connection():
+#     return pymysql.connect(
+#         host="localhost",
+#         user="your_user",
+#         password="your_password",
+#         db="your_db_name",
+#         cursorclass=pymysql.cursors.DictCursor
+#     )
+
+# def get_location_data(location_name):
+#     conn = get_db_connection()
+#     try:
+#         with conn.cursor() as cursor:
+#             sql = "SELECT * FROM odp_data WHERE location = %s"
+#             cursor.execute(sql, (location_name,))
+#             result = cursor.fetchone()
+#             return result
+#     finally:
+#         conn.close()
 
 # States for the conversation handler
 SELECT_LOCATION = 1  # State where the user selects the location
@@ -38,6 +61,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def printuserdict(update : Update, context: ContextTypes.DEFAULT_TYPE) -> None :
     user_id = update.message.from_user.id if update.message else update.callback_query.from_user.id
+    await update.message.reply_text('check cmd for debugging info')
     print(user_location)
     print(update.message.from_user.name + ": " + user_location[user_id])
 
@@ -56,7 +80,7 @@ async def setlokasi(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         location = "default location"  # Default if no location selected
 
     user_location[user_id] = location  # Store the location
-    await update.message.reply_text(f"Location set to: {location}") if update.message else update.callback_query.reply_text(f"Location set to: {location}")
+    await update.message.reply_text(f"Location set to: {location}") if update.message else update.callback_query.message.reply_text(f"Location set to: {location}")
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles the callback query for inline buttons."""
@@ -86,6 +110,7 @@ async def location_selected(update: Update, context: CallbackContext) -> int:
     """Handles the location selection by the user."""
     user_id = update.callback_query.from_user.id
     selected_location = update.callback_query.data  #ambil data dari ceklokasi 
+    # get_location_data(selected_location)
 
     print(">> location_selected called")
     # simpan datanya di context
@@ -119,7 +144,7 @@ async def echo(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text(update.message.text)
 
 if __name__ == '__main__':
-    print("Starting bot...") # debugging
+    print("Starting bottestingv3.py ...") # debugging
 
     # template dri githubnya 
     application = Application.builder().token(TELEGRAM_TOKEN).build()
