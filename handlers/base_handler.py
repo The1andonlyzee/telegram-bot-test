@@ -3,6 +3,7 @@ from telegram.ext import ConversationHandler
 from utils.constants import SELECT_LOCATION
 from utils.helpers import show_main_menu
 from utils.error_handler import ErrorHandler
+from handlers.common_handlers import cancel
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,6 @@ class BaseHandler:
                 return SELECT_LOCATION
             elif callback_data == "finish":
                 await query.edit_message_text("Terima kasih!")
-                from handlers.common_handlers import cancel
                 return await cancel(update, context)
             else:
                 return None  # Let specific handler deal with it

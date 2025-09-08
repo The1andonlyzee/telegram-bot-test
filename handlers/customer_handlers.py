@@ -42,6 +42,10 @@ async def handle_customer_lookup_selection(update: Update, context: CallbackCont
         query = update.callback_query
         await BaseHandler.safe_callback_answer(update)
         
+        common_result = await BaseHandler.handle_common_navigation(update, context, query.data)
+        if common_result is not None:
+            return common_result
+        
         if query.data == "customer_by_location":
             return await show_customer_location_selection(update, context)
         elif query.data == "customer_by_name":
@@ -53,6 +57,7 @@ async def handle_customer_lookup_selection(update: Update, context: CallbackCont
         else:
             await query.edit_message_text("❌ Pilihan tidak dikenal.")
             return ConversationHandler.END
+
     
     except Exception as e:
         return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
@@ -86,6 +91,10 @@ async def handle_customer_location_selection(update: Update, context: CallbackCo
     try:
         query = update.callback_query
         await BaseHandler.safe_callback_answer(update)
+        
+        common_result = await BaseHandler.handle_common_navigation(update, context, query.data)
+        if common_result is not None:
+            return common_result
         
         if query.data == "back_to_customer_options":
             return await show_customer_lookup_options(update, context)
