@@ -32,7 +32,7 @@ async def show_customer_lookup_options(update: Update, context: CallbackContext)
         return CUSTOMER_SELECT_LOCATION
         
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
 
 async def handle_customer_lookup_selection(update: Update, context: CallbackContext):
     """Handle customer lookup method selection"""
@@ -55,7 +55,7 @@ async def handle_customer_lookup_selection(update: Update, context: CallbackCont
             return ConversationHandler.END
     
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
 
 async def show_customer_location_selection(update: Update, context: CallbackContext):
     """Show location selection for customer lookup"""
@@ -76,7 +76,7 @@ async def show_customer_location_selection(update: Update, context: CallbackCont
         return CUSTOMER_SELECT_ODP
         
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
 
 async def handle_customer_location_selection(update: Update, context: CallbackContext):
     """Handle customer location selection"""
@@ -98,7 +98,7 @@ async def handle_customer_location_selection(update: Update, context: CallbackCo
         return ConversationHandler.END
         
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
 
 async def show_odp_selection(update: Update, context: CallbackContext, coverage_id: int):
     """Show ODP selection for customer lookup"""
@@ -123,7 +123,7 @@ async def show_odp_selection(update: Update, context: CallbackContext, coverage_
         return CUSTOMER_NAVIGATE
         
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
 
 async def handle_customer_navigation(update: Update, context: CallbackContext):
     """Handle customer lookup navigation"""
@@ -136,12 +136,23 @@ async def handle_customer_navigation(update: Update, context: CallbackContext):
         common_result = await BaseHandler.handle_common_navigation(update, context, query.data)
         if common_result is not None:
             return common_result
+        
+        # Handle customer-specific navigation
+        if query.data.startswith("odp_"):
+            id_odp = int(query.data.replace("odp_", ""))
+            return await show_customers_in_odp(update, context, id_odp)
+        elif query.data == "back_to_odp_selection":
+            # Need to get coverage_id from context or state
+            pass  # You'll need to implement this
+        elif query.data == "back_to_customer_locations":
+            return await show_customer_location_selection(update, context)
+        
         else:
             await query.edit_message_text("❌ Pilihan tidak dikenal.")
             return ConversationHandler.END
     
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
 
 async def handle_customer_name_search(update: Update, context: CallbackContext):
     """Handle customer name search input"""
@@ -181,7 +192,7 @@ async def handle_customer_name_search(update: Update, context: CallbackContext):
         return CUSTOMER_SELECT_LOCATION
         
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
 
 async def show_customers_in_odp(update: Update, context: CallbackContext, id_odp: int):
     """Show customers connected to specific ODP"""
@@ -211,4 +222,4 @@ async def show_customers_in_odp(update: Update, context: CallbackContext, id_odp
         return CUSTOMER_NAVIGATE
         
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)

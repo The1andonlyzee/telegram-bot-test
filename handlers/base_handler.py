@@ -20,14 +20,14 @@ class BaseHandler:
                 await show_main_menu(update, is_callback=True)
                 return SELECT_LOCATION
             elif callback_data == "finish":
-                await query.edit_message_text("âœ… Terima kasih!")
+                await query.edit_message_text("Terima kasih!")
                 from handlers.common_handlers import cancel
                 return await cancel(update, context)
             else:
                 return None  # Let specific handler deal with it
                 
         except Exception as e:
-            return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+            return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
     
     @staticmethod
     async def safe_callback_answer(update):

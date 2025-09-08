@@ -1,5 +1,5 @@
 import logging
-from telegram.ext import ConversationHandler
+from telegram.ext import ContextTypes, ConversationHandler
 from database.port_queries import port_db
 from utils.constants import SELECT_LOCATION
 from utils.ui_components import KeyboardBuilder, MessageTemplates
@@ -9,7 +9,7 @@ from utils.error_handler import ErrorHandler
 
 logger = logging.getLogger(__name__)
 
-async def show_location_selection(update, context, is_callback=False):
+async def show_location_selection(update, is_callback=False):
     """Helper function to display location selection menu"""
     ErrorHandler.log_handler_entry("show_location_selection", update)
     
@@ -37,7 +37,7 @@ async def show_location_selection(update, context, is_callback=False):
         return SELECT_LOCATION
         
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
 
 
 async def show_main_menu(update, is_callback=False):

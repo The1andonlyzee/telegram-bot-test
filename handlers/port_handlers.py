@@ -1,13 +1,11 @@
 import logging
 from telegram import Update
 from telegram.ext import CallbackContext, ConversationHandler
-from telegram.constants import ParseMode
 from database.port_queries import port_db
 from utils.constants import user_location, NAVIGATE, SELECT_LOCATION
-from utils.helpers import show_location_selection, show_main_menu
+from utils.helpers import show_location_selection
 from utils.message_formatter import format_port_availability_message
 from utils.ui_components import KeyboardBuilder
-from utils.message_handler import MessageHandler
 from utils.error_handler import ErrorHandler
 from handlers.base_handler import BaseHandler
 
@@ -23,7 +21,7 @@ async def cekodp(update: Update, context):
 async def location_selected(update: Update, context: CallbackContext):
     """Handle location selection for port checking"""
     ErrorHandler.log_handler_entry("location_selected", update)
-    
+
     try:
         query = update.callback_query
         user_id = query.from_user.id
@@ -61,13 +59,14 @@ async def location_selected(update: Update, context: CallbackContext):
 
         await query.answer("âŒ Pilihan tidak valid")
         return ConversationHandler.END
-        
+    
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
 
 async def handle_port_navigation(update: Update, context: CallbackContext):
     """Handle navigation buttons for port checking"""
-    ErrorHandler.log_handler_entry("handle_port_navigation", update)
+
+    ErrorHandler.log_handler_entry("location_selected", update)
 
     try:
         query = update.callback_query
@@ -81,9 +80,8 @@ async def handle_port_navigation(update: Update, context: CallbackContext):
         if query.data == "back_to_locations":
             return await show_location_selection(update, is_callback=True)
         else:
-            from utils.error_handler import ErrorHandler
             return await ErrorHandler.handle_error(update, context, "Unknown option", "invalid_selection", ConversationHandler.END)
 
     
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)

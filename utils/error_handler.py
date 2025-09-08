@@ -8,18 +8,18 @@ class ErrorHandler:
     """Centralized error handling for consistent user experience"""
     
     @staticmethod
-    async def handle_error(update, context, error, error_type="system_error", return_state=ConversationHandler.END):
+    async def handle_error(update, error, error_type="system_error", return_state=ConversationHandler.END):
         """Handle errors consistently across all handlers"""
         try:
             user_id = update.effective_user.id if update.effective_user else "unknown"
             logger.error(f"Error for user {user_id}: {error}")
             
             error_messages = {
-                'system_error': 'âŒ Terjadi kesalahan sistem. Silakan coba lagi dengan /start',
-                'database_error': 'âŒ Terjadi kesalahan database. Silakan coba lagi nanti.',
-                'invalid_selection': 'âŒ Pilihan tidak dikenal. Silakan mulai ulang dengan /start',
-                'no_data': 'âŒ Data tidak ditemukan.',
-                'user_input_error': 'âŒ Input tidak valid. Silakan coba lagi.'
+                'system_error': '❌ Terjadi kesalahan sistem. Silakan coba lagi dengan /start',
+                'database_error': '❌ Terjadi kesalahan database. Silakan coba lagi nanti.',
+                'invalid_selection': '❌ Pilihan tidak dikenal. Silakan mulai ulang dengan /start',
+                'no_data': '❌ Data tidak ditemukan.',
+                'user_input_error': '❌ Input tidak valid. Silakan coba lagi.'
             }
             
             message = error_messages.get(error_type, error_messages['system_error'])

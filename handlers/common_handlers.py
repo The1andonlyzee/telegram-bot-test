@@ -26,7 +26,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return SELECT_LOCATION
         
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
     
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel command handler"""
@@ -46,4 +46,4 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
         
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)

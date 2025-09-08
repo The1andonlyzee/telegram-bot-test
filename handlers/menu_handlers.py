@@ -1,8 +1,6 @@
 import logging
 from telegram import Update
 from telegram.ext import CallbackContext, ConversationHandler
-from utils.constants import SELECT_LOCATION
-from utils.helpers import show_main_menu
 from utils.helpers import show_location_selection
 from handlers.customer_handlers import show_customer_lookup_options
 from handlers.base_handler import BaseHandler
@@ -32,7 +30,7 @@ async def handle_main_menu(update: Update, context: CallbackContext):
     
 
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
 
 async def handle_navigation(update: Update, context: CallbackContext):
     """Handle general navigation buttons"""
@@ -53,4 +51,4 @@ async def handle_navigation(update: Update, context: CallbackContext):
             return await ErrorHandler.handle_error(update, context, "Unknown option", "invalid_selection", ConversationHandler.END)
     
     except Exception as e:
-        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+        return await ErrorHandler.handle_error(update, e, "system_error", ConversationHandler.END)
