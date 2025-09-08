@@ -5,18 +5,20 @@ from utils.constants import SELECT_LOCATION
 from utils.helpers import show_main_menu
 from utils.helpers import show_location_selection
 from handlers.customer_handlers import show_customer_lookup_options
+from handlers.base_handler import BaseHandler
+from utils.error_handler import ErrorHandler
 
 logger = logging.getLogger(__name__)
 
 async def handle_main_menu(update: Update, context: CallbackContext):
     """Handle main menu selections"""
-    print(f'\n' +'=-'*12 + "handle_main_menu called" + '=-'*12)
-    
+    ErrorHandler.log_handler_entry("handle_main_menu", update)
+
     try:
         query = update.callback_query
         user_id = query.from_user.id
         
-        await query.answer()
+        await BaseHandler.safe_callback_answer(update)
         logger.info(f"User {user_id} selected menu option: {query.data}")
         
         if query.data == "check_ports":
@@ -28,33 +30,27 @@ async def handle_main_menu(update: Update, context: CallbackContext):
             await query.edit_message_text("❌ Pilihan tidak dikenal. Silakan mulai ulang dengan /start")
             return ConversationHandler.END
     
+
     except Exception as e:
-        logger.error(f"Error in handle_main_menu: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem. Silakan coba lagi dengan /start")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
 
 async def handle_navigation(update: Update, context: CallbackContext):
     """Handle general navigation buttons"""
-    print(f'\n' +'=-'*12 + "handle_navigation called" + '=-'*12)
-    
+    ErrorHandler.log_handler_entry("handle_navigation", update)    
     try:
         query = update.callback_query
-        await query.answer()
+        await BaseHandler.safe_callback_answer(update)
         
+        common_result = await BaseHandler.handle_common_navigation(update, context, query.data)
+        if common_result is not None:
+            return common_result
+            
+        # Handle menu-specific navigation
         if query.data == "back_to_locations":
             return await show_location_selection(update, is_callback=True)
-        elif query.data == "back_to_main_menu":
-            await show_main_menu(update, is_callback=True)
-            return SELECT_LOCATION
-        elif query.data == "finish":
-            await query.edit_message_text("✅ Terima kasih!")
-            from handlers.common_handlers import cancel
-            return await cancel(update, context)
         else:
-            await query.edit_message_text("❌ Pilihan tidak dikenal.")
-            return ConversationHandler.END
+            from utils.error_handler import ErrorHandler
+            return await ErrorHandler.handle_error(update, context, "Unknown option", "invalid_selection", ConversationHandler.END)
     
     except Exception as e:
-        logger.error(f"Error in handle_navigation: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)

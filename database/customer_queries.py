@@ -1,40 +1,16 @@
 import pymysql
 import logging
 from database.base_db import BaseDatabase
+from database.shared_queries import SharedQueries
+
 
 logger = logging.getLogger(__name__)
 
-class CustomerQueries(BaseDatabase):
+class CustomerQueries(SharedQueries):
     """Database queries related to customer management"""
-    
-    def get_all_locations(self):
-        """Get all coverage locations"""
-        conn = None
-        try:
-            conn = self.get_connection()
-            with conn.cursor() as cursor:
-                sql = "SELECT coverage_id, c_name FROM coverage WHERE c_name IS NOT NULL AND c_name != '' ORDER BY c_name"
-                cursor.execute(sql)
-                results = cursor.fetchall()
-                locations = [(row["coverage_id"], row["c_name"]) for row in results if row["c_name"]]
-                logger.info(f"Retrieved {len(locations)} unique locations")
-                return locations
-        except pymysql.Error as e:
-            logger.error(f"MySQL error in get_customers_by_odp: {e}")
-            return []
-        except Exception as e:
-            logger.error(f"Unexpected error in get_customers_by_odp: {e}")
-            return []
-        finally:
-            if conn:
-                try:
-                    conn.close()
-                except Exception as e:
-                    logger.error(f"Error closing connection in get_customers_by_odp: {e}")
 
     def search_customers_by_name(self, customer_name):
         """Search customers by name (partial match)"""
-        conn = None
         try:
             conn = self.get_connection()
             with conn.cursor() as cursor:
@@ -58,8 +34,7 @@ class CustomerQueries(BaseDatabase):
                 LIMIT 20
                 """
                 search_term = f"%{customer_name}%"
-                cursor.execute(sql, (search_term,))
-                result = cursor.fetchall()
+                result = self.execute_query(sql, (search_term,))
                 logger.info(f"Found {len(result)} customers matching '{customer_name}'")
                 return result
         except pymysql.Error as e:
@@ -77,7 +52,6 @@ class CustomerQueries(BaseDatabase):
     
     def get_odps_by_coverage(self, coverage_id):
         """Get ODPs with customers for customer lookup"""
-        conn = None
         try:
             conn = self.get_connection()
             with conn.cursor() as cursor:
@@ -98,8 +72,7 @@ class CustomerQueries(BaseDatabase):
                 HAVING customer_count > 0
                 ORDER BY odc.code_odc, odp.code_odp
                 """
-                cursor.execute(sql, (coverage_id,))
-                result = cursor.fetchall()
+                result = self.execute_query(sql, (coverage_id,))
                 logger.info(f"Retrieved {len(result)} ODPs with customers for coverage_id: {coverage_id}")
                 return result
         except pymysql.Error as e:
@@ -117,7 +90,6 @@ class CustomerQueries(BaseDatabase):
     
     def get_customers_by_odp(self, id_odp):
         """Get customers connected to specific ODP"""
-        conn = None
         try:
             conn = self.get_connection()
             with conn.cursor() as cursor:
@@ -136,8 +108,7 @@ class CustomerQueries(BaseDatabase):
                 WHERE c.id_odp = %s 
                 ORDER BY c.no_port_odp
                 """
-                cursor.execute(sql, (id_odp,))
-                result = cursor.fetchall()
+                result = self.execute_query(sql, (id_odp,))
                 logger.info(f"Retrieved {len(result)} customers for id_odp: {id_odp}")
                 return result
         except pymysql.Error as e:

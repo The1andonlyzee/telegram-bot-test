@@ -4,22 +4,26 @@ from telegram import Update
 from telegram.ext import CallbackContext, ConversationHandler
 from telegram.constants import ParseMode
 from database.customer_queries import customer_db
-from utils.constants import (
-    SELECT_LOCATION, CUSTOMER_SELECT_LOCATION, CUSTOMER_SELECT_ODP, 
-    CUSTOMER_NAVIGATE, CUSTOMER_NAME_SEARCH
-)
+from utils.constants import     SELECT_LOCATION, CUSTOMER_SELECT_LOCATION, CUSTOMER_SELECT_ODP, CUSTOMER_NAVIGATE, CUSTOMER_NAME_SEARCH
 from utils.message_formatter import format_customer_search_results, format_customers_in_odp
 from utils.ui_components import KeyboardBuilder, MessageTemplates
 from utils.helpers import show_main_menu
+from utils.message_handler import MessageHandler
+from utils.error_handler import ErrorHandler
+from database.shared_queries import shared_db
+from handlers.base_handler import BaseHandler
+
 
 logger = logging.getLogger(__name__)
 
 async def show_customer_lookup_options(update: Update, context: CallbackContext):
     """Show customer lookup options"""
-    print(f'\n' +'=-'*12 + "show_customer_lookup_options called" + '=-'*12)
+    ErrorHandler.log_handler_entry("show_customer_lookup_options", update)
+
     
     try:
         query = update.callback_query
+        user_id = query.from_user.id
         
         reply_markup = KeyboardBuilder.customer_lookup_keyboard()
         message = MessageTemplates.CUSTOMER_LOOKUP_MESSAGE
@@ -28,17 +32,15 @@ async def show_customer_lookup_options(update: Update, context: CallbackContext)
         return CUSTOMER_SELECT_LOCATION
         
     except Exception as e:
-        logger.error(f"Error in show_customer_lookup_options: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
 
 async def handle_customer_lookup_selection(update: Update, context: CallbackContext):
     """Handle customer lookup method selection"""
-    print(f'\n' +'=-'*12 + "handle_customer_lookup_selection called" + '=-'*12)
+    ErrorHandler.log_handler_entry("handle_customer_lookup_selection", update)
     
     try:
         query = update.callback_query
-        await query.answer()
+        await BaseHandler.safe_callback_answer(update)
         
         if query.data == "customer_by_location":
             return await show_customer_location_selection(update, context)
@@ -53,17 +55,15 @@ async def handle_customer_lookup_selection(update: Update, context: CallbackCont
             return ConversationHandler.END
     
     except Exception as e:
-        logger.error(f"Error in handle_customer_lookup_selection: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
 
 async def show_customer_location_selection(update: Update, context: CallbackContext):
     """Show location selection for customer lookup"""
-    print(f'\n' +'=-'*12 + "show_customer_location_selection called" + '=-'*12)
+    ErrorHandler.log_handler_entry("show_customer_location_selection", update)
     
     try:
         query = update.callback_query
-        locations = customer_db.get_all_locations()
+        locations = shared_db.get_all_locations()
         
         if not locations:
             await query.edit_message_text("❌ Tidak ada lokasi tersedia.")
@@ -76,17 +76,16 @@ async def show_customer_location_selection(update: Update, context: CallbackCont
         return CUSTOMER_SELECT_ODP
         
     except Exception as e:
-        logger.error(f"Error in show_customer_location_selection: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
 
 async def handle_customer_location_selection(update: Update, context: CallbackContext):
     """Handle customer location selection"""
-    print(f'\n' +'=-'*12 + "handle_customer_location_selection called" + '=-'*12)
+    ErrorHandler.log_handler_entry("handle_customer_location_selection", update)
+
     
     try:
         query = update.callback_query
-        await query.answer()
+        await BaseHandler.safe_callback_answer(update)
         
         if query.data == "back_to_customer_options":
             return await show_customer_lookup_options(update, context)
@@ -99,13 +98,11 @@ async def handle_customer_location_selection(update: Update, context: CallbackCo
         return ConversationHandler.END
         
     except Exception as e:
-        logger.error(f"Error in handle_customer_location_selection: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
 
 async def show_odp_selection(update: Update, context: CallbackContext, coverage_id: int):
     """Show ODP selection for customer lookup"""
-    print(f'\n' +'=-'*12 + "show_odp_selection called" + '=-'*12)
+    ErrorHandler.log_handler_entry("show_odp_selection", update)
     
     try:
         query = update.callback_query
@@ -126,47 +123,30 @@ async def show_odp_selection(update: Update, context: CallbackContext, coverage_
         return CUSTOMER_NAVIGATE
         
     except Exception as e:
-        logger.error(f"Error in show_odp_selection: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
 
 async def handle_customer_navigation(update: Update, context: CallbackContext):
     """Handle customer lookup navigation"""
-    print(f'\n' +'=-'*12 + "handle_customer_navigation called" + '=-'*12)
+    ErrorHandler.log_handler_entry("handle_customer_navigation", update)
     
     try:
         query = update.callback_query
-        await query.answer()
+        await BaseHandler.safe_callback_answer(update)
         
-        if query.data == "back_to_customer_locations":
-            return await show_customer_location_selection(update, context)
-        elif query.data == "back_to_customer_options":
-            return await show_customer_lookup_options(update, context)
-        elif query.data == "back_to_main_menu":
-            await show_main_menu(update, is_callback=True)
-            return SELECT_LOCATION
-        elif query.data == "back_to_odp_selection":
-            return await show_customer_location_selection(update, context)
-        elif query.data.startswith("odp_"):
-            id_odp = int(query.data.replace("odp_", ""))
-            return await show_customers_in_odp(update, context, id_odp)
-        elif query.data == "finish":
-            await query.edit_message_text("✅ Terima kasih!")
-            from handlers.common_handlers import cancel
-            return await cancel(update, context)
+        common_result = await BaseHandler.handle_common_navigation(update, context, query.data)
+        if common_result is not None:
+            return common_result
         else:
             await query.edit_message_text("❌ Pilihan tidak dikenal.")
             return ConversationHandler.END
     
     except Exception as e:
-        logger.error(f"Error in handle_customer_navigation: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
 
 async def handle_customer_name_search(update: Update, context: CallbackContext):
     """Handle customer name search input"""
-    print(f'\n' +'=-'*12 + "handle_customer_name_search called" + '=-'*12)
-    
+    ErrorHandler.log_handler_entry("handle_customer_name_search", update)
+
     try:
         user_input = update.message.text.strip()
         user_id = update.effective_user.id
@@ -183,7 +163,6 @@ async def handle_customer_name_search(update: Update, context: CallbackContext):
         
         # Search customers
         customers = customer_db.search_customers_by_name(user_input)
-        print(customers)
 
         if not customers:
             reply_markup = KeyboardBuilder.no_results_keyboard()
@@ -197,30 +176,17 @@ async def handle_customer_name_search(update: Update, context: CallbackContext):
         # Format and send results
         messages = format_customer_search_results(user_input, customers)
         reply_markup = KeyboardBuilder.search_results_keyboard()
-        
-        # Send all messages with Markdown parsing to enable clickable links
-        for i, message in enumerate(messages):
-            # Add navigation buttons only to the last message
-            current_markup = reply_markup if i == len(messages) - 1 else None
-            
-            await update.message.reply_text(
-                message, 
-                reply_markup=current_markup, 
-                parse_mode=ParseMode.MARKDOWN,
-                disable_web_page_preview=True
-            )
+        await MessageHandler.send_long_message(update, messages, reply_markup, is_callback=False)
         
         return CUSTOMER_SELECT_LOCATION
         
     except Exception as e:
-        logger.error(f"Error in handle_customer_name_search: {e}")
-        await update.message.reply_text("❌ Terjadi kesalahan saat mencari customer.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
 
 async def show_customers_in_odp(update: Update, context: CallbackContext, id_odp: int):
     """Show customers connected to specific ODP"""
-    print(f'\n' +'=-'*12 + "show_customers_in_odp called" + '=-'*12)
-    
+    ErrorHandler.log_handler_entry("show_customers_in_odp", update)
+
     try:
         query = update.callback_query
         customers = customer_db.get_customers_by_odp(id_odp)
@@ -233,11 +199,11 @@ async def show_customers_in_odp(update: Update, context: CallbackContext, id_odp
         message = format_customers_in_odp(customers)
         
         # Handle long messages
-        if len(message) > 4000:
-            messages = [message[i:i+4000] for i in range(0, len(message), 4000)]
-            for msg in messages[:-1]:
-                await query.message.reply_text(msg)
+        if len(message) > MessageHandler.MAX_MESSAGE_LENGTH:
+            messages = [message[i:i+MessageHandler.MAX_MESSAGE_LENGTH] for i in range(0, len(message), MessageHandler.MAX_MESSAGE_LENGTH)]
+            await MessageHandler.send_long_message(update, messages[:-1], None, is_callback=True)
             message = messages[-1]
+
         
         reply_markup = KeyboardBuilder.customer_navigation_keyboard()
         
@@ -245,6 +211,4 @@ async def show_customers_in_odp(update: Update, context: CallbackContext, id_odp
         return CUSTOMER_NAVIGATE
         
     except Exception as e:
-        logger.error(f"Error in show_customers_in_odp: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)

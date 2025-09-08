@@ -1,36 +1,15 @@
 import pymysql
 import logging
 from database.base_db import BaseDatabase
+from database.shared_queries import shared_db
+from database.shared_queries import SharedQueries
+
 
 logger = logging.getLogger(__name__)
 
-class PortQueries(BaseDatabase):
+class PortQueries(SharedQueries):
     """Database queries related to port availability and ODC/ODP management"""
     
-    def get_all_locations(self):
-        """Get all coverage locations"""
-        conn = None
-        try:
-            conn = self.get_connection()
-            with conn.cursor() as cursor:
-                sql = "SELECT coverage_id, c_name FROM coverage WHERE c_name IS NOT NULL AND c_name != '' ORDER BY c_name"
-                cursor.execute(sql)
-                results = cursor.fetchall()
-                locations = [(row["coverage_id"], row["c_name"]) for row in results if row["c_name"]]
-                logger.info(f"Retrieved {len(locations)} unique locations")
-                return locations
-        except pymysql.Error as e:
-            logger.error(f"MySQL error in get_all_locations: {e}")
-            return []
-        except Exception as e:
-            logger.error(f"Unexpected error in get_all_locations: {e}")
-            return []
-        finally:
-            if conn:
-                try:
-                    conn.close()
-                except Exception as e:
-                    logger.error(f"Error closing connection in get_all_locations: {e}")
     
     def get_location_data(self, coverage_id):
         """Get ODC and ODP data for port availability"""
@@ -63,8 +42,7 @@ class PortQueries(BaseDatabase):
                 WHERE c.coverage_id = %s
                 ORDER BY odc.code_odc, odp.code_odp
                 """
-                cursor.execute(sql, (coverage_id,))
-                result = cursor.fetchall()
+                result = self.execute_query(sql, (coverage_id,))
                 logger.info(f"Retrieved {len(result)} records for coverage_id: {coverage_id}")
                 return result
         except pymysql.Error as e:

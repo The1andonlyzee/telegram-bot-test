@@ -3,12 +3,15 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 from utils.constants import user_location, SELECT_LOCATION
 from utils.helpers import show_main_menu
+from utils.error_handler import ErrorHandler
+
 
 logger = logging.getLogger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start command handler with main menu"""
-    print(f'\n' +'=-'*12 + "start called" + '=-'*12)
+    
+    ErrorHandler.log_handler_entry("start", update)
     
     try:
         user_id = update.effective_user.id
@@ -23,16 +26,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return SELECT_LOCATION
         
     except Exception as e:
-        logger.error(f"Error in start command: {e}")
-        try:
-            await update.message.reply_text("❌ Terjadi kesalahan. Silakan coba lagi.")
-        except Exception as reply_error:
-            logger.error(f"Failed to send error message in start: {reply_error}")
-        return ConversationHandler.END
-
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
+    
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel command handler"""
-    print(f'\n' +'=-'*12 + "cancel called" + '=-'*12)
+    ErrorHandler.log_handler_entry("cancel", update)
     
     try:
         user_id = update.effective_user.id if update.effective_user else "unknown"
@@ -48,12 +46,4 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
         
     except Exception as e:
-        logger.error(f"Error in cancel function: {e}")
-        try:
-            if update.callback_query:
-                await update.callback_query.message.reply_text("❌ Proses dibatalkan dengan kesalahan.")
-            elif update.message:
-                await update.message.reply_text("❌ Proses dibatalkan dengan kesalahan.")
-        except Exception as reply_error:
-            logger.error(f"Failed to send error message in cancel: {reply_error}")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)

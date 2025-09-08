@@ -7,17 +7,22 @@ from utils.constants import user_location, NAVIGATE, SELECT_LOCATION
 from utils.helpers import show_location_selection, show_main_menu
 from utils.message_formatter import format_port_availability_message
 from utils.ui_components import KeyboardBuilder
+from utils.message_handler import MessageHandler
+from utils.error_handler import ErrorHandler
+from handlers.base_handler import BaseHandler
+
+
 
 logger = logging.getLogger(__name__)
 
 async def cekodp(update: Update, context):
     """Check ODP port availability command"""
-    print(f'\n' +'=-'*12 + "cekodp called" + '=-'*12)
+    ErrorHandler.log_handler_entry("cekodp", update)
     return await show_location_selection(update, is_callback=False)
 
 async def location_selected(update: Update, context: CallbackContext):
     """Handle location selection for port checking"""
-    print(f'\n' +'=-'*12 + "location_selected called" + '=-'*12)
+    ErrorHandler.log_handler_entry("location_selected", update)
     
     try:
         query = update.callback_query
@@ -32,75 +37,53 @@ async def location_selected(update: Update, context: CallbackContext):
         # Handle port check location selection
         if selected_data.isdigit():
             coverage_id = int(selected_data)
-            logger.info(f"User {user_id} selected coverage_id: {coverage_id}")
-            
             location_data = port_db.get_location_data(coverage_id)
             
             if location_data is None:
-                await query.answer("❌ Terjadi kesalahan database")
-                await query.edit_message_text("❌ Terjadi kesalahan saat mengakses database.")
-                return ConversationHandler.END
+                await query.answer("âŒ Terjadi kesalahan database")
             
             if location_data:
                 user_location[user_id] = location_data
                 location_name = location_data[0].get('c_name', 'Unknown')
                 
-               # Format the port availability message with coordinates (returns list of messages)
                 messages = format_port_availability_message(location_name, location_data)
-                
                 reply_markup = KeyboardBuilder.port_navigation_keyboard()
                 
-                await query.answer()
+                await BaseHandler.safe_callback_answer(update)
                 await query.edit_message_text("Lokasi berhasil diset.")
                 
-                # Send all messages with Markdown parsing to enable clickable links
-                for i, message in enumerate(messages):
-                    # Add navigation buttons only to the last message
-                    current_markup = reply_markup if i == len(messages) - 1 else None
-                    
-                    await query.message.reply_text(
-                        message, 
-                        reply_markup=current_markup, 
-                        parse_mode=ParseMode.MARKDOWN,
-                        disable_web_page_preview=True
-                    )
+                from utils.message_handler import MessageHandler
+                await MessageHandler.send_long_message(update, messages, reply_markup, is_callback=True)
                 
                 return NAVIGATE
             else:
-                await query.answer("❌ Lokasi tidak ditemukan")
-                await query.edit_message_text("❌ Lokasi tidak ditemukan di database.")
-                return ConversationHandler.END
-        
-        await query.answer("❌ Pilihan tidak valid")
+                await query.answer("âŒ Lokasi tidak ditemukan")
+
+        await query.answer("âŒ Pilihan tidak valid")
         return ConversationHandler.END
         
     except Exception as e:
-        logger.error(f"Error in location_selected: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
 
 async def handle_port_navigation(update: Update, context: CallbackContext):
     """Handle navigation buttons for port checking"""
-    print(f'\n' +'=-'*12 + "handle_port_navigation called" + '=-'*12)
-    
+    ErrorHandler.log_handler_entry("handle_port_navigation", update)
+
     try:
         query = update.callback_query
-        await query.answer()
+        await BaseHandler.safe_callback_answer(update)
         
+        common_result = await BaseHandler.handle_common_navigation(update, context, query.data)
+        if common_result is not None:
+            return common_result
+            
+        # Handle port-specific navigation
         if query.data == "back_to_locations":
             return await show_location_selection(update, is_callback=True)
-        elif query.data == "back_to_main_menu":
-            await show_main_menu(update, is_callback=True)
-            return SELECT_LOCATION
-        elif query.data == "finish":
-            await query.edit_message_text("✅ Terima kasih!")
-            from handlers.common_handlers import cancel
-            return await cancel(update, context)
         else:
-            await query.edit_message_text("❌ Pilihan tidak dikenal.")
-            return ConversationHandler.END
+            from utils.error_handler import ErrorHandler
+            return await ErrorHandler.handle_error(update, context, "Unknown option", "invalid_selection", ConversationHandler.END)
+
     
     except Exception as e:
-        logger.error(f"Error in handle_port_navigation: {e}")
-        await query.edit_message_text("❌ Terjadi kesalahan sistem.")
-        return ConversationHandler.END
+        return await ErrorHandler.handle_error(update, context, e, "system_error", ConversationHandler.END)
