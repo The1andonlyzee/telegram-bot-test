@@ -102,9 +102,9 @@ def format_port_availability_message(location_name, location_data):
             # Add ODC coordinates if available
             odc_maps_url = create_google_maps_url(odc_lat, odc_lng)
             if odc_maps_url:
-                entry_text += f"  📍[{odc_lat},{odc_lng}]({odc_maps_url})\n===="*10+"\n\n" # ini utk markdown
+                entry_text += f"  📍[{odc_lat},{odc_lng}]({odc_maps_url})\n"+"===="*10+"\n\n" # ini utk markdown
             else:
-                entry_text += f"  📍 Lokasi ODC tidak tersedia\n===="*10+"\n\n"
+                entry_text += f"  📍 Lokasi ODC tidak tersedia\n"+"===="*10+"\n\n"
         
         # ODP information
         entry_text += f"  📡 ODP: {odp_code}\n"
