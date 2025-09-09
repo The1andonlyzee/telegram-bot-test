@@ -1,3 +1,4 @@
+import re
 """Message formatting utilities for consistent Telegram message display"""
 
 def convert_dms_to_decimal(dms_str):
@@ -7,14 +8,10 @@ def convert_dms_to_decimal(dms_str):
         
         # Check if it's already in decimal format
         if '°' not in dms_str or ("'" not in dms_str and '"' not in dms_str):
-            # Try to parse as decimal
             clean_str = dms_str.replace('°', '').strip()
             return float(clean_str)
         
-        # Parse DMS format like: 5°10'49.46"S or 119°27'40.94"T
-        import re
-        
-        # Extract numbers and direction
+        # regex matching for DMS format
         pattern = r"(\d+)°(\d+)'([\d.]+)\"([NSEWT])"
         match = re.match(pattern, dms_str)
         
@@ -29,10 +26,14 @@ def convert_dms_to_decimal(dms_str):
         # Convert to decimal
         decimal = degrees + minutes/60 + seconds/3600
         
-        # Apply direction (S and W are negative, T is treated as E for East)
+        """
+        Apply direction (S and W are negative, T is treated as E for East)
+        sebenarnya tidak perlu west karena indonesia sepenuhnya di T/E tpi oklah
+        """
+
         if direction in ['S', 'W']:
             decimal = -decimal
-        elif direction == 'T':  # T seems to be used for Timur (East in Indonesian)
+        elif direction == 'T':  # T for Timur East in Indonesian
             decimal = decimal
         
         return decimal
@@ -43,15 +44,15 @@ def convert_dms_to_decimal(dms_str):
 def create_google_maps_url(latitude, longitude):
     """Create Google Maps URL from coordinates (handles both DMS and decimal formats)"""
     try:
-        # Clean and validate coordinates
+
         lat_str = str(latitude).strip()
         lng_str = str(longitude).strip()
         
-        # Check if coordinates are valid (not empty or null)
+        # coordinates validation
         if not lat_str or not lng_str or lat_str in ['', '0', 'NULL', 'null'] or lng_str in ['', '0', 'NULL', 'null']:
             return None
         
-        # Convert DMS to decimal if needed
+        # Convert DMS to decimal
         lat_decimal = convert_dms_to_decimal(lat_str)
         lng_decimal = convert_dms_to_decimal(lng_str)
         
@@ -62,7 +63,6 @@ def create_google_maps_url(latitude, longitude):
         if not (-90 <= lat_decimal <= 90) or not (-180 <= lng_decimal <= 180):
             return None
             
-        # Create Google Maps URL with decimal coordinates
         return f"https://maps.google.com/maps?q={lat_decimal},{lng_decimal}"
         
     except Exception:
@@ -71,7 +71,6 @@ def create_google_maps_url(latitude, longitude):
 def format_port_availability_message(location_name, location_data):
     """Format port availability data into readable messages with coordinates and long message handling"""
     
-    # Handle empty data
     if not location_data:
         return [f"📊 Lokasi: {location_name}\n\n❌ Tidak ada data ODP tersedia."]
     
@@ -85,15 +84,12 @@ def format_port_availability_message(location_name, location_data):
         total_port = entry.get('total_port', 'N/A')
         available_port = entry.get('odp_available_port', 'N/A')
         
-        # ODC coordinates
+        # ODP & ODC coordinates
         odc_lat = entry.get('odc_latitude', '')
         odc_lng = entry.get('odc_longitude', '')
-        
-        # ODP coordinates  
         odp_lat = entry.get('odp_latitude', '')
         odp_lng = entry.get('odp_longitude', '')
         
-        # Build the entry text
         entry_text = ""
         
         # Show ODC info only when it changes (grouped display)
@@ -106,12 +102,9 @@ def format_port_availability_message(location_name, location_data):
             # Add ODC coordinates if available
             odc_maps_url = create_google_maps_url(odc_lat, odc_lng)
             if odc_maps_url:
-                entry_text += f"  📍[{odc_lat},{odc_lng}]({odc_maps_url})\n" # ini utk markdown
-                entry_text += f"===="*10+"\n"
+                entry_text += f"  📍[{odc_lat},{odc_lng}]({odc_maps_url})\n===="*10+"\n\n" # ini utk markdown
             else:
-                entry_text += f"  📍 ODC Location: Not available\n"
-                entry_text += f"===="*10+"\n"
-            entry_text += "\n"
+                entry_text += f"  📍 Lokasi ODC tidak tersedia\n===="*10+"\n\n"
         
         # ODP information
         entry_text += f"  📡 ODP: {odp_code}\n"
@@ -121,11 +114,9 @@ def format_port_availability_message(location_name, location_data):
         # Add ODP coordinates if available
         odp_maps_url = create_google_maps_url(odp_lat, odp_lng)
         if odp_maps_url:
-            entry_text += f"  📍 [{odp_lat},{odp_lng}]({odp_maps_url})\n" #ini utk markdown
+            entry_text += f"  📍 [{odp_lat},{odp_lng}]({odp_maps_url})\n\n" #ini utk markdown
         else:
-            entry_text += f"  📍 ODP Location: Not available\n"
-        
-        entry_text += "\n"
+            entry_text += f"  📍 Lokasi ODP tidak tersedia\n\n"
         
         # Check if adding this entry would exceed Telegram's limit
         if len(current_message + entry_text) > 4000:
@@ -138,9 +129,6 @@ def format_port_availability_message(location_name, location_data):
     # Add the last message
     if current_message.strip():
         messages.append(current_message.rstrip())
-    
-    if not messages:
-        messages = [f"📊 Lokasi: {location_name}\n\n❌ Tidak ada data ODP tersedia."]
     
     return messages
 
@@ -162,12 +150,12 @@ def format_customer_search_results(search_term, customers):
 
         customer_info = (
             f"{i}. 👤 {customer.get('name', 'N/A')}\n"
-            f"   🏠 Address: {customer.get('address', 'N/A')}\n"
-            f"   📍 Location: {customer.get('c_name', 'N/A')}\n"
+            f"   🏠 Alamat: {customer.get('address', 'N/A')}\n"
+            f"   📍 Lokasi: {customer.get('c_name', 'N/A')}\n"
             f"   🔌 ODC: {customer.get('code_odc', 'N/A')}\n"
             f"   📡 ODP: {customer.get('code_odp', 'N/A')} {location_markdown}\n"
             f"   📢 Port: {customer.get('no_port_odp', 'N/A')}\n"
-            f"   📞 Phone: {customer.get('no_wa', 'N/A')}\n\n"
+            f"   📞 No. Telp: {customer.get('no_wa', 'N/A')}\n\n"
         )
 
         # Check if adding this entry would exceed Telegram's limit
@@ -192,12 +180,12 @@ def format_customers_in_odp(customers):
     odp_code = first_customer.get('code_odp', 'N/A')
     
     message = f"👥 Customers in ODP {odp_code}\n"
-    message += f"📍 Location: {location_name}\n"
+    message += f"📍 Lokasi: {location_name}\n"
     message += f"🔌 ODC: {odc_code}\n\n"
     
     for i, customer in enumerate(customers, 1):
         message += f"{i}. 👤 {customer.get('name', 'N/A')}\n"
-        message += f"   🏠 Address: {customer.get('address', 'N/A') if 'address' in customer else 'N/A'}\n"
+        message += f"   🏠 Alamat: {customer.get('address', 'N/A') if 'address' in customer else 'N/A'}\n"
         message += f"   📢 Port: {customer.get('no_port_odp', 'N/A')}\n\n"
     
     return message
