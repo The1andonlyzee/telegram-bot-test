@@ -39,5 +39,6 @@ class ErrorHandler:
     def log_handler_entry(handler_name, update):
         """Log handler entry consistently"""
         user_id = update.effective_user.id if update.effective_user else "unknown"
-        print(f'\n' + '=-'*12 + f"{handler_name} called" + '=-'*12)
+        n=15
+        print(f'\n' + '=-'*n + f"{handler_name} called" + '=-'*n)
         logger.info(f"{handler_name} called by user {user_id}")
