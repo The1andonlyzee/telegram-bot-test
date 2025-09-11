@@ -66,7 +66,7 @@ class KeyboardBuilder:
     def customer_navigation_keyboard():
         """Build customer lookup navigation keyboard"""
         return InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Kembali ke Daftar ODP", callback_data="back_to_odp_selection")],
+            # [InlineKeyboardButton("🔙 Kembali ke Daftar ODP", callback_data="back_to_odp_selection")],
             [InlineKeyboardButton("📍 Ganti Lokasi", callback_data="back_to_customer_locations")],
             [InlineKeyboardButton("🏠 Menu Utama", callback_data="back_to_main_menu")],
             [InlineKeyboardButton("✅ Selesai", callback_data="finish")]
