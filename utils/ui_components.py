@@ -95,7 +95,7 @@ class MessageTemplates:
     """Template messages for consistent UI"""
     
     WELCOME_MESSAGE = (
-        "Selamat datang di BNet ODP Management Bot! 🏢\n\n"
+        "Selamat datang di BNetID ODP Management Bot! 🏢\n\n"
         "Silakan pilih fitur yang ingin Anda gunakan:"
     )   
     
